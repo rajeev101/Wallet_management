@@ -14,17 +14,27 @@ function AdminLoginPage({ setPage }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (event) => {
-    setForm({
-      ...form,
-      [event.target.name]: event.target.value,
-    });
+    const { name, value } = event.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const clearAdminStorage = () => {
+    localStorage.removeItem("cpacToken");
+    localStorage.removeItem("cpacUserType");
+    localStorage.removeItem("cpacUser");
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setStatus("");
 
-    if (!form.email.trim() || !form.password.trim()) {
+    const email = form.email.trim();
+    const password = form.password.trim();
+
+    if (!email || !password) {
       setStatus("Please enter your email and password.");
       return;
     }
@@ -32,24 +42,33 @@ function AdminLoginPage({ setPage }) {
     setIsSubmitting(true);
 
     try {
-      const data = await adminLogin(form);
-      const safeUser = { ...(data.user || {}) };
+      const data = await adminLogin({ email, password });
+
+      // Validate API response
+      if (!data || !data.token || !data.user) {
+        throw new Error("Invalid response from server.");
+      }
+
+      const safeUser = { ...data.user };
       delete safeUser.password;
 
-      if (safeUser.accountType !== "admin") {
+      // Support both role and accountType from backend
+      const userType = safeUser.role || safeUser.accountType;
+
+      if (userType !== "admin") {
+        clearAdminStorage();
         setStatus("Access denied. Admin credentials are required.");
-        localStorage.removeItem("cpacToken");
-        localStorage.removeItem("cpacUserType");
-        localStorage.removeItem("cpacUser");
         return;
       }
 
       localStorage.setItem("cpacToken", data.token);
       localStorage.setItem("cpacUserType", "admin");
       localStorage.setItem("cpacUser", JSON.stringify(safeUser));
+
       setPage("admin-dashboard");
     } catch (error) {
-      setStatus(error.message);
+      clearAdminStorage();
+      setStatus(error?.message || "Admin login failed. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -59,6 +78,7 @@ function AdminLoginPage({ setPage }) {
     <div className="admin-login-page">
       <div className="admin-login-card">
         <Logo />
+
         <form className="auth-form" onSubmit={handleSubmit}>
           <h1>Admin Login</h1>
           <p>Secure access for system administrators.</p>
@@ -82,18 +102,19 @@ function AdminLoginPage({ setPage }) {
             autoComplete="current-password"
           />
 
-          <Button text={isSubmitting ? "Signing In..." : "Sign In as Admin"} disabled={isSubmitting} />
+          <Button
+            text={isSubmitting ? "Signing In..." : "Sign In as Admin"}
+            disabled={isSubmitting}
+          />
 
           {status && <p className="form-status">{status}</p>}
 
           <p className="switch-text">
-            Student or vendor?
+            Student or vendor?{" "}
             <button
               className="link-button"
               type="button"
-              onClick={() => {
-                window.location.href = "http://localhost:3000/login";
-              }}
+              onClick={() => setPage("login")}
             >
               Use regular login
             </button>
