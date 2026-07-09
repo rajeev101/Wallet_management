@@ -1,16 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./VendorIcon";
-
-const defaultNotifications = [
-  { id: 1, text: "Payment Received: ₹12.50 from John Doe.", time: "June 18, 2026 at 2:30 PM" },
-  { id: 2, text: "Payment Received: ₹15.75 from Sarah Williams.", time: "June 18, 2026 at 1:00 PM" },
-  { id: 3, text: "Welcome to Campus Wallet! Start accepting payments.", time: "June 15, 2026 at 9:00 AM" },
-];
+import { clearNotifications, getNotifications } from "../api/auth";
 
 function VendorAppbar({ title, vendor = {}, onLogout }) {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [notifications, setNotifications] = useState(defaultNotifications);
+  const [notifications, setNotifications] = useState([]);
 
   const notifRef = useRef(null);
   const profileRef = useRef(null);
@@ -31,8 +26,34 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
     };
   }, []);
 
-  const handleClearNotif = () => {
-    setNotifications([]);
+  useEffect(() => {
+    const token = localStorage.getItem("cpacToken");
+    if (!token) return undefined;
+
+    const loadNotifications = async () => {
+      try {
+        const data = await getNotifications(token);
+        setNotifications(data.notifications || []);
+      } catch (error) {
+        console.error("Failed to load notifications:", error);
+      }
+    };
+
+    loadNotifications();
+    const interval = window.setInterval(loadNotifications, 5000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  const handleClearNotif = async () => {
+    const token = localStorage.getItem("cpacToken");
+    if (!token) return;
+
+    try {
+      await clearNotifications(token);
+      setNotifications([]);
+    } catch (error) {
+      console.error("Failed to clear notifications:", error);
+    }
   };
 
   const handleLogoutClick = () => {
@@ -84,9 +105,9 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
               <div className="notification-list">
                 {notifications.length > 0 ? (
                   notifications.map((notif) => (
-                    <div key={notif.id} className="notification-item">
+                    <div key={notif._id} className="notification-item">
                       <p>{notif.text}</p>
-                      <span className="notif-time">{notif.time}</span>
+                      <span className="notif-time">{new Date(notif.createdAt).toLocaleString()}</span>
                     </div>
                   ))
                 ) : (

@@ -49,3 +49,8 @@ export const getAdminWalletRequests = () => request("/admin/wallet/requests");
 
 export const updateWalletRequestStatus = (id, payload) =>
   request(`/admin/wallet/request/${id}`, payload, { method: "PUT" });
+
+export const getNotifications = () => request("/auth/notifications");
+
+export const clearNotifications = () =>
+  request("/auth/notifications", undefined, { method: "DELETE" });

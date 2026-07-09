@@ -1,17 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Icon } from "./StudentIcon";
-
-const defaultNotifications = [
-  { id: 1, text: "Wallet Recharge: Your request for ₹50.00 was approved.", time: "May 28, 2026 at 10:30 AM" },
-  { id: 2, text: "Payment Successful: Paid ₹12.50 to Campus Cafe.", time: "May 28, 2026 at 2:30 PM" },
-  { id: 3, text: "Low Balance Alert: Your balance is below ₹20.00.", time: "May 24, 2026 at 1:00 PM" },
-  { id: 4, text: "Welcome to LSP! Start scan & pay on campus.", time: "May 20, 2026 at 9:00 AM" },
-];
+import { clearNotifications, getNotifications } from "../api/auth";
 
 function StudentHeader({ title, dateText = "Wednesday, June 17, 2026", student, onLogout, showSearch = false }) {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [notifications, setNotifications] = useState(defaultNotifications);
+  const [notifications, setNotifications] = useState([]);
 
   const notifRef = useRef(null);
   const profileRef = useRef(null);
@@ -32,8 +26,34 @@ function StudentHeader({ title, dateText = "Wednesday, June 17, 2026", student, 
     };
   }, []);
 
-  const handleClearNotif = () => {
-    setNotifications([]);
+  useEffect(() => {
+    const token = localStorage.getItem("cpacToken");
+    if (!token) return undefined;
+
+    const loadNotifications = async () => {
+      try {
+        const data = await getNotifications(token);
+        setNotifications(data.notifications || []);
+      } catch (error) {
+        console.error("Failed to load notifications:", error);
+      }
+    };
+
+    loadNotifications();
+    const interval = window.setInterval(loadNotifications, 5000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  const handleClearNotif = async () => {
+    const token = localStorage.getItem("cpacToken");
+    if (!token) return;
+
+    try {
+      await clearNotifications(token);
+      setNotifications([]);
+    } catch (error) {
+      console.error("Failed to clear notifications:", error);
+    }
   };
 
   const handleLogoutClick = () => {
@@ -113,9 +133,9 @@ function StudentHeader({ title, dateText = "Wednesday, June 17, 2026", student, 
               <div className="notification-list">
                 {notifications.length > 0 ? (
                   notifications.map((notif) => (
-                    <div key={notif.id} className="notification-item">
+                    <div key={notif._id} className="notification-item">
                       <p>{notif.text}</p>
-                      <span className="notif-time">{notif.time}</span>
+                      <span className="notif-time">{new Date(notif.createdAt).toLocaleString()}</span>
                     </div>
                   ))
                 ) : (

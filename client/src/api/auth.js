@@ -58,3 +58,9 @@ export const getApprovedVendors = (token) =>
 
 export const getVendorById = (id, token) =>
   request(`/auth/vendors/${id}`, undefined, { method: "GET", token });
+
+export const getNotifications = (token) =>
+  request("/auth/notifications", undefined, { method: "GET", token });
+
+export const clearNotifications = (token) =>
+  request("/auth/notifications", undefined, { method: "DELETE", token });
