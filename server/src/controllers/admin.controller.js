@@ -1,6 +1,7 @@
 const Transaction = require("../models/transaction.model");
 const User = require("../models/user.model");
 const Wallet = require("../models/wallet.model");
+const Notification = require("../models/notification.model");
 
 const getSearchFilter = (search) => {
   if (!search) {
@@ -352,6 +353,15 @@ exports.updateWalletRequestStatus = async (req, res) => {
       transaction.status = "failed"; // rejected maps to failed in the DB schema
       transaction.createdBy = req.admin?._id || req.user?.userId;
       await transaction.save();
+    }
+
+    const requestWallet = await Wallet.findById(transaction.toWallet).select("owner");
+    if (requestWallet?.owner) {
+      await Notification.create({
+        recipient: requestWallet.owner,
+        type: "wallet_status",
+        text: `Wallet Recharge: Your request for ₹${Number(transaction.amount).toFixed(2)} was ${status}.`,
+      });
     }
 
     res.status(200).json({

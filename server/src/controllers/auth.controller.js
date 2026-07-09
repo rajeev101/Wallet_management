@@ -2,6 +2,7 @@ const User = require("../models/user.model");
 const Wallet = require("../models/wallet.model");
 const OTP = require("../models/otp.model");
 const Transaction = require("../models/transaction.model");
+const Notification = require("../models/notification.model");
 const bcrypt = require("bcryptjs");
 const generateToken = require("../utils/generateToken");
 const { sendOTPEmail, sendPasswordResetSuccessEmail } = require("../utils/email");
@@ -528,6 +529,21 @@ exports.createWalletRequest = async (req, res) => {
       description: "Requested add money to admin",
     });
 
+    const [requester, admins] = await Promise.all([
+      User.findById(userId).select("name"),
+      User.find({ accountType: "admin" }).select("_id"),
+    ]);
+
+    if (admins.length) {
+      await Notification.insertMany(
+        admins.map((admin) => ({
+          recipient: admin._id,
+          type: "wallet_request",
+          text: `Money Request: ${requester?.name || "A student"} requested ₹${parsedAmount.toFixed(2)}.`,
+        }))
+      );
+    }
+
     res.status(201).json({
       success: true,
       message: "Wallet request submitted successfully",
@@ -678,6 +694,12 @@ exports.makePayment = async (req, res) => {
       amount: parsedAmount,
       status: "completed",
       description: `Payment to ${vendor.name}`,
+    });
+
+    await Notification.create({
+      recipient: vendor._id,
+      type: "payment",
+      text: `Payment Received: ₹${parsedAmount.toFixed(2)} from ${student.name}.`,
     });
 
     res.status(200).json({

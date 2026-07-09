@@ -23,6 +23,10 @@ const {
   "../controllers/auth.controller"
 );
 const authMiddleware = require("../middlewares/auth.middleware");
+const {
+  getNotifications,
+  clearNotifications,
+} = require("../controllers/notification.controller");
 
 router.post("/signup", signup);
 
@@ -46,5 +50,7 @@ router.post("/pay", authMiddleware, makePayment);
 router.get("/transactions", authMiddleware, getMyTransactions);
 router.get("/vendors", authMiddleware, getApprovedVendors);
 router.get("/vendors/:id", authMiddleware, getVendorById);
+router.get("/notifications", authMiddleware, getNotifications);
+router.delete("/notifications", authMiddleware, clearNotifications);
 
 module.exports = router;
