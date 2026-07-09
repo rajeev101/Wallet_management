@@ -15,8 +15,10 @@ const {
   updateProfile,
   createWalletRequest,
   getStudentWalletRequests,
-  createPayment,
-  getNotifications,
+  makePayment,
+  getMyTransactions,
+  getApprovedVendors,
+  getVendorById,
 } = require(
   "../controllers/auth.controller"
 );
@@ -40,7 +42,9 @@ router.put("/profile", authMiddleware, updateProfile);
 
 router.post("/wallet/request", authMiddleware, createWalletRequest);
 router.get("/wallet/requests", authMiddleware, getStudentWalletRequests);
-router.post("/payment", authMiddleware, createPayment);
-router.get("/notifications", authMiddleware, getNotifications);
+router.post("/pay", authMiddleware, makePayment);
+router.get("/transactions", authMiddleware, getMyTransactions);
+router.get("/vendors", authMiddleware, getApprovedVendors);
+router.get("/vendors/:id", authMiddleware, getVendorById);
 
 module.exports = router;

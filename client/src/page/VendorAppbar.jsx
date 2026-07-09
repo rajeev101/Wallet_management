@@ -1,61 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { getNotifications } from "../api/auth";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "./VendorIcon";
 
-const getStoredUserId = () => {
-  try {
-    const user = JSON.parse(localStorage.getItem("cpacUser") || "{}");
-    return user._id || user.id || user.email || "vendor";
-  } catch {
-    return "vendor";
-  }
-};
-
-const getDismissedStorageKey = () => `cpacVendorDismissedNotificationIds:${getStoredUserId()}`;
-
-const getDismissedNotificationIds = (storageKey) => {
-  try {
-    return new Set(JSON.parse(localStorage.getItem(storageKey) || "[]").map(String));
-  } catch {
-    return new Set();
-  }
-};
-
-const saveDismissedNotificationIds = (storageKey, ids) => {
-  localStorage.setItem(storageKey, JSON.stringify([...ids]));
-};
+const defaultNotifications = [
+  { id: 1, text: "Payment Received: ₹12.50 from John Doe.", time: "June 18, 2026 at 2:30 PM" },
+  { id: 2, text: "Payment Received: ₹15.75 from Sarah Williams.", time: "June 18, 2026 at 1:00 PM" },
+  { id: 3, text: "Welcome to Campus Wallet! Start accepting payments.", time: "June 15, 2026 at 9:00 AM" },
+];
 
 function VendorAppbar({ title, vendor = {}, onLogout }) {
-  const dismissedStorageKey = getDismissedStorageKey();
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [notifications, setNotifications] = useState([]);
+  const [notifications, setNotifications] = useState(defaultNotifications);
 
   const notifRef = useRef(null);
   const profileRef = useRef(null);
-  const dismissedStorageKeyRef = useRef(dismissedStorageKey);
-  const dismissedNotificationIdsRef = useRef(getDismissedNotificationIds(dismissedStorageKey));
-
-  const loadNotifications = useCallback(async () => {
-    const token = localStorage.getItem("cpacToken");
-    if (!token) return;
-
-    try {
-      const data = await getNotifications(token);
-      setNotifications(
-        (data.notifications || []).filter((notif) => !dismissedNotificationIdsRef.current.has(String(notif.id)))
-      );
-    } catch (notificationError) {
-      console.error("Failed to load vendor notifications:", notificationError);
-    }
-  }, [setNotifications]);
-
-  useEffect(() => {
-    loadNotifications();
-    const timer = window.setInterval(loadNotifications, 15000);
-
-    return () => window.clearInterval(timer);
-  }, [loadNotifications]);
 
   // Close dropdowns on clicking outside
   useEffect(() => {
@@ -74,8 +32,6 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
   }, []);
 
   const handleClearNotif = () => {
-    notifications.forEach((notif) => dismissedNotificationIdsRef.current.add(String(notif.id)));
-    saveDismissedNotificationIds(dismissedStorageKeyRef.current, dismissedNotificationIdsRef.current);
     setNotifications([]);
   };
 
@@ -92,8 +48,6 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
 
   const displayName = vendor.name || "Campus Cafe";
   const displayEmail = vendor.email || "vendor@campus.edu";
-  const displayPhoto = vendor.profilePicture || "";
-  const displayInitial = displayName.charAt(0).toUpperCase();
 
   return (
     <div className="vendor-appbar">
@@ -157,11 +111,7 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
               <span>{displayEmail}</span>
             </div>
             <span className="vendor-avatar">
-              {displayPhoto ? (
-                <img src={displayPhoto} alt={`${displayName} profile`} />
-              ) : (
-                <Icon type="user" />
-              )}
+              <Icon type="user" />
             </span>
           </div>
 
@@ -169,11 +119,7 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
             <div className="profile-dropdown">
               <div className="profile-dropdown-info">
                 <span className="profile-dropdown-avatar">
-                  {displayPhoto ? (
-                    <img src={displayPhoto} alt={`${displayName} profile`} />
-                  ) : (
-                    displayInitial
-                  )}
+                  {displayName.charAt(0).toUpperCase()}
                 </span>
                 <strong>{displayName}</strong>
                 <span className="email">{displayEmail}</span>

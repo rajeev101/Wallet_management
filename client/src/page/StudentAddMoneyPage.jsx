@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "./StudentIcon";
 import StudentHeader from "./StudentHeader";
 import { createWalletRequest, getWalletRequests } from "../api/auth";
@@ -40,7 +40,7 @@ function StudentAddMoneyPage({ student, onLogout, refreshProfile }) {
 
   const token = localStorage.getItem("cpacToken");
 
-  const loadRequests = useCallback(async () => {
+  const loadRequests = async () => {
     try {
       if (!token) return;
       const res = await getWalletRequests(token);
@@ -50,16 +50,16 @@ function StudentAddMoneyPage({ student, onLogout, refreshProfile }) {
     } catch (err) {
       console.error("Failed to load wallet requests:", err);
     }
-  }, [token]);
+  };
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
+    Promise.resolve().then(() => {
       loadRequests();
-      refreshProfile?.();
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, [loadRequests, refreshProfile]);
+    });
+    if (refreshProfile) {
+      refreshProfile();
+    }
+  }, []);
 
   const handleSubmit = async () => {
     setSuccessMessage("");
@@ -104,7 +104,7 @@ function StudentAddMoneyPage({ student, onLogout, refreshProfile }) {
           <h2>Request Add Money</h2>
           <label htmlFor="topUpAmount">Amount to Add</label>
           <div className="amount-field add-money-input">
-            <span>$</span>
+            <span>₹</span>
             <input
               id="topUpAmount"
               min="0.01"
@@ -118,7 +118,7 @@ function StudentAddMoneyPage({ student, onLogout, refreshProfile }) {
           </div>
           <div className="current-balance-panel">
             <span>Current Balance</span>
-            <strong>${Number(student?.walletBalance || 0).toFixed(2)}</strong>
+            <strong>₹{Number(student?.walletBalance || 0).toFixed(2)}</strong>
           </div>
           {errorMessage && <p style={{ color: "#ef4444", fontSize: "0.85rem", margin: "8px 0" }}>{errorMessage}</p>}
           {successMessage && <p style={{ color: "#10b981", fontSize: "0.85rem", margin: "8px 0" }}>{successMessage}</p>}
@@ -139,7 +139,7 @@ function StudentAddMoneyPage({ student, onLogout, refreshProfile }) {
               requests.map((req) => (
                 <article key={req._id || req.id} className="request-item">
                   <div>
-                    <strong>{`$${Number(req.amount).toFixed(2)}`}</strong>
+                    <strong>{`₹${Number(req.amount).toFixed(2)}`}</strong>
                     <span>
                       <Icon type="clock" />
                       {formatDate(req.createdAt)}
