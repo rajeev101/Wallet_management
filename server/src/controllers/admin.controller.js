@@ -2,17 +2,6 @@ const Transaction = require("../models/transaction.model");
 const User = require("../models/user.model");
 const Wallet = require("../models/wallet.model");
 
-const formatNotificationTime = (value) =>
-  new Date(value).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-
-const formatMoney = (value) => `$${Number(value || 0).toFixed(2)}`;
-
 const getSearchFilter = (search) => {
   if (!search) {
     return {};
@@ -281,76 +270,6 @@ exports.getTransactions = async (req, res) => {
     res.status(200).json({
       success: true,
       transactions: formattedTransactions,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
-
-exports.getNotifications = async (req, res) => {
-  try {
-    const [payments, walletRequests, newUsers] = await Promise.all([
-      Transaction.find({
-        type: "payment",
-        status: "completed",
-      })
-        .populate("student", "name email")
-        .populate("vendor", "name email")
-        .sort({ createdAt: -1 })
-        .limit(25),
-      Transaction.find({
-        type: "wallet_topup",
-        status: "pending",
-      })
-        .populate("student", "name email")
-        .sort({ createdAt: -1 })
-        .limit(25),
-      User.find({
-        accountType: { $in: ["student", "vendor"] },
-      })
-        .select("name email accountType vendorStatus createdAt")
-        .sort({ createdAt: -1 })
-        .limit(25),
-    ]);
-
-    const paymentNotifications = payments.map((transaction) => ({
-      id: `payment-${transaction._id}`,
-      text: `${transaction.student?.name || "Student"} paid ${formatMoney(transaction.amount)} to ${transaction.vendor?.name || "Vendor"}.`,
-      time: formatNotificationTime(transaction.createdAt),
-      createdAt: transaction.createdAt,
-    }));
-
-    const walletRequestNotifications = walletRequests.map((transaction) => ({
-      id: `wallet-request-${transaction._id}`,
-      text: `${transaction.student?.name || "Student"} requested ${formatMoney(transaction.amount)} wallet top-up approval.`,
-      time: formatNotificationTime(transaction.createdAt),
-      createdAt: transaction.createdAt,
-    }));
-
-    const accountNotifications = newUsers.map((user) => ({
-      id: `account-${user._id}`,
-      text:
-        user.accountType === "vendor"
-          ? `New vendor account created: ${user.name || "Vendor"} (${user.email}).`
-          : `New student account created: ${user.name || "Student"} (${user.email}).`,
-      time: formatNotificationTime(user.createdAt),
-      createdAt: user.createdAt,
-    }));
-
-    const notifications = [
-      ...paymentNotifications,
-      ...walletRequestNotifications,
-      ...accountNotifications,
-    ]
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-      .slice(0, 50);
-
-    res.status(200).json({
-      success: true,
-      notifications,
     });
   } catch (error) {
     res.status(500).json({

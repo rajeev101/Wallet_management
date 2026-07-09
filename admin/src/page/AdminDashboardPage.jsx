@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   approveVendor,
-  getAdminNotifications,
   getAdminStats,
   getAdminStudents,
   getAdminTransactions,
@@ -14,19 +13,6 @@ import { getProfile, updateProfile } from "../api/auth";
 
 const formatNumber = (value) => new Intl.NumberFormat("en-US").format(Number(value || 0));
 const formatMoney = (value) => `$${formatNumber(Math.round(Number(value || 0)))}`;
-const ADMIN_DISMISSED_NOTIFICATIONS_KEY = "cpacAdminDismissedNotificationIds";
-
-const getDismissedNotificationIds = (storageKey) => {
-  try {
-    return new Set(JSON.parse(localStorage.getItem(storageKey) || "[]").map(String));
-  } catch {
-    return new Set();
-  }
-};
-
-const saveDismissedNotificationIds = (storageKey, ids) => {
-  localStorage.setItem(storageKey, JSON.stringify([...ids]));
-};
 
 const fallbackTransactions = [
   ["TXN001", "John Doe", "Campus Cafe", "$12.50", "Completed", "2 mins ago"],
@@ -96,6 +82,13 @@ const fallbackVendors = [
   },
 ];
 
+const defaultNotifications = [
+  { id: 1, text: "Wallet Recharge: Your request for $50.00 was approved.", time: "May 28, 2026 at 10:30 AM" },
+  { id: 2, text: "Payment Successful: Paid $12.50 to Campus Cafe.", time: "May 28, 2026 at 2:30 PM" },
+  { id: 3, text: "Low Balance Alert: Your balance is below $20.00.", time: "May 24, 2026 at 1:00 PM" },
+  { id: 4, text: "Welcome to Campus Wallet! Start scan & pay on campus.", time: "May 20, 2026 at 9:00 AM" },
+];
+
 const getStoredAdmin = () => {
   try {
     return JSON.parse(localStorage.getItem("cpacUser") || "{}");
@@ -108,6 +101,7 @@ const buildProfileForm = (user = {}) => ({
   name: user.name || "Admin User",
   email: user.email || "admin@campuswallet.com",
   phone: user.phone || "",
+  photo: user.profilePicture || "",
   accountStatus: user.accountStatus || "Active",
   joinDate:
     user.joinDate ||
@@ -124,20 +118,6 @@ const buildProfileForm = (user = {}) => ({
         })),
 });
 
-const getInitials = (name = "") => {
-  const parts = name
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-
-  if (parts.length === 0) return "A";
-
-  return parts
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join("");
-};
-
 function AdminDashboardPage({ setPage }) {
   const [activeView, setActiveView] = useState("dashboard");
   const [stats, setStats] = useState(null);
@@ -149,17 +129,15 @@ function AdminDashboardPage({ setPage }) {
   const [error, setError] = useState({ text: "", view: "" });
   const [isLoading, setIsLoading] = useState(true);
   const [walletRequests, setWalletRequests] = useState([]);
-  const [notifications, setNotifications] = useState([]);
+  const [notifications, setNotifications] = useState(defaultNotifications);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [transactionTab, setTransactionTab] = useState("student");
-  const [isProfileEditing, setIsProfileEditing] = useState(false);
-  const [dashboardModal, setDashboardModal] = useState({ type: "", selectedId: "" });
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
 
   const notifRef = useRef(null);
   const profileRef = useRef(null);
   const activeViewRef = useRef(activeView);
-  const dismissedNotificationIdsRef = useRef(getDismissedNotificationIds(ADMIN_DISMISSED_NOTIFICATIONS_KEY));
 
   const [admin, setAdmin] = useState(getStoredAdmin);
 
@@ -182,12 +160,6 @@ function AdminDashboardPage({ setPage }) {
   const showError = useCallback((text) => {
     setError({ text, view: activeViewRef.current });
     setMessage({ text: "", view: "" });
-  }, []);
-
-  const applyNotifications = useCallback((nextNotifications = []) => {
-    setNotifications(
-      nextNotifications.filter((notif) => !dismissedNotificationIdsRef.current.has(String(notif.id)))
-    );
   }, []);
 
   useEffect(() => {
@@ -215,27 +187,18 @@ function AdminDashboardPage({ setPage }) {
     setError({ text: "", view: "" });
 
     try {
-      const [
-        statsData,
-        studentsData,
-        vendorsData,
-        transactionsData,
-        walletRequestsData,
-        notificationsData,
-      ] = await Promise.all([
+      const [statsData, studentsData, vendorsData, transactionsData, walletRequestsData] = await Promise.all([
         getAdminStats(),
         getAdminStudents(query),
         getAdminVendors(query),
         getAdminTransactions(),
         getAdminWalletRequests(),
-        getAdminNotifications(),
       ]);
 
       setStats(statsData.stats);
       setStudents(studentsData.students || []);
       setVendors(vendorsData.vendors || []);
       setTransactions(transactionsData.transactions || []);
-      applyNotifications(notificationsData.notifications || []);
 
       const formattedRequests = (walletRequestsData.requests || []).map((req) => {
         const date = new Date(req.createdAt);
@@ -255,16 +218,7 @@ function AdminDashboardPage({ setPage }) {
     } finally {
       setIsLoading(false);
     }
-  }, [applyNotifications, showError]);
-
-  const loadAdminNotifications = useCallback(async () => {
-    try {
-      const data = await getAdminNotifications();
-      applyNotifications(data.notifications || []);
-    } catch (notificationError) {
-      console.error("Failed to load admin notifications:", notificationError);
-    }
-  }, [applyNotifications]);
+  }, [showError]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -273,12 +227,6 @@ function AdminDashboardPage({ setPage }) {
 
     return () => window.clearTimeout(timer);
   }, [loadAdminData]);
-
-  useEffect(() => {
-    const timer = window.setInterval(loadAdminNotifications, 15000);
-
-    return () => window.clearInterval(timer);
-  }, [loadAdminNotifications]);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -316,7 +264,6 @@ function AdminDashboardPage({ setPage }) {
       if (event.key === "Escape") {
         setIsNotifOpen(false);
         setIsProfileOpen(false);
-        setDashboardModal({ type: "", selectedId: "" });
       }
     }
 
@@ -367,8 +314,6 @@ function AdminDashboardPage({ setPage }) {
   };
 
   const handleClearNotif = () => {
-    notifications.forEach((notif) => dismissedNotificationIdsRef.current.add(String(notif.id)));
-    saveDismissedNotificationIds(ADMIN_DISMISSED_NOTIFICATIONS_KEY, dismissedNotificationIdsRef.current);
     setNotifications([]);
   };
 
@@ -377,9 +322,14 @@ function AdminDashboardPage({ setPage }) {
     setProfileForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleProfileCancel = () => {
-    setProfileForm(buildProfileForm(admin));
-    setIsProfileEditing(false);
+  const handleProfileImage = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setProfileForm((prev) => ({ ...prev, photo: reader.result }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleProfileSave = async (event) => {
@@ -399,7 +349,7 @@ function AdminDashboardPage({ setPage }) {
           name: profileForm.name.trim(),
           email: profileForm.email.trim(),
           phone: profileForm.phone.trim(),
-          profilePicture: "",
+          profilePicture: profileForm.photo,
         },
         token
       );
@@ -409,8 +359,8 @@ function AdminDashboardPage({ setPage }) {
       setAdmin(safeUser);
       setProfileForm(buildProfileForm(safeUser));
       localStorage.setItem("cpacUser", JSON.stringify(safeUser));
+      setIsEditingProfile(false);
       showMessage("Profile updated successfully.");
-      setIsProfileEditing(false);
     } catch (saveError) {
       showError(saveError.message);
     }
@@ -430,7 +380,6 @@ function AdminDashboardPage({ setPage }) {
       trend: "12% vs last month",
       icon: "students",
       tone: "blue",
-      modalType: "students",
     },
     {
       label: "Total Vendors",
@@ -438,7 +387,6 @@ function AdminDashboardPage({ setPage }) {
       trend: "5% vs last month",
       icon: "store",
       tone: "cyan",
-      modalType: "vendors",
     },
     {
       label: "Total Transactions",
@@ -475,14 +423,13 @@ function AdminDashboardPage({ setPage }) {
       })
     : fallbackTransactions;
   const visibleStudents = students.length ? students : fallbackStudents;
-  const getStudentDisplayId = (student, index) =>
-    student._id?.startsWith("STU") ? student._id : `STU${String(index + 12345)}`;
-
   const filteredStudents = visibleStudents.filter((student, index) => {
     const query = search.trim().toLowerCase();
     if (!query) return true;
 
-    const studentId = getStudentDisplayId(student, index);
+    const studentId = student._id?.startsWith("STU")
+      ? student._id
+      : `STU${String(index + 12345)}`;
 
     return [
       student.name,
@@ -505,14 +452,13 @@ function AdminDashboardPage({ setPage }) {
     ["Avg. Balance", `$${averageStudentBalance.toFixed(2)}`],
   ];
   const visibleVendors = vendors.length ? vendors : fallbackVendors;
-  const getVendorDisplayId = (vendor, index) =>
-    vendor._id?.startsWith("V") ? vendor._id : `V${String(index + 1).padStart(3, "0")}`;
-
   const filteredVendors = visibleVendors.filter((vendor, index) => {
     const query = search.trim().toLowerCase();
     if (!query) return true;
 
-    const vendorId = getVendorDisplayId(vendor, index);
+    const vendorId = vendor._id?.startsWith("V")
+      ? vendor._id
+      : `V${String(index + 1).padStart(3, "0")}`;
 
     return [
       vendor.name,
@@ -550,14 +496,8 @@ function AdminDashboardPage({ setPage }) {
 
   const pendingWalletRequests = walletRequests.filter((request) => request.status === "pending").length;
   const adminDisplayName = admin.name || "Admin User";
-  const adminInitials = getInitials(adminDisplayName);
-  const profileFormInitials = getInitials(profileForm.name);
-  const adminDetails = buildProfileForm(admin);
-  const dashboardModalItems = dashboardModal.type === "students" ? visibleStudents : visibleVendors;
-  const dashboardModalSelected =
-    dashboardModal.type === "students"
-      ? visibleStudents.find((student, index) => getStudentDisplayId(student, index) === dashboardModal.selectedId)
-      : visibleVendors.find((vendor, index) => getVendorDisplayId(vendor, index) === dashboardModal.selectedId);
+  const adminPhoto = admin.profilePicture || "";
+  const adminInitial = adminDisplayName.charAt(0).toUpperCase();
 
   const filteredTransactions = transactions.filter((transaction) => {
     const type = String(transaction.type || "").toLowerCase();
@@ -599,12 +539,7 @@ function AdminDashboardPage({ setPage }) {
               className={activeView === view ? "active" : ""}
               key={view}
               type="button"
-              onClick={() => {
-                setActiveView(view);
-                if (view === "profile") {
-                  setIsProfileEditing(false);
-                }
-              }}
+              onClick={() => setActiveView(view)}
             >
               <AdminIcon type={icon} />
               {label}
@@ -632,11 +567,7 @@ function AdminDashboardPage({ setPage }) {
                     ? "Wallet Management"
                     : activeView === "dashboard"
                       ? "Dashboard"
-                      : activeView === "profile"
-                        ? isProfileEditing
-                          ? "Edit Profile"
-                          : "Profile"
-                        : pageTitle(activeView)}
+                      : pageTitle(activeView)}
             </h1>
             <p>{activeView === "students" ? "Manage students and wallet balances" : today}</p>
           </div>
@@ -697,7 +628,11 @@ function AdminDashboardPage({ setPage }) {
                   <span>Administrator</span>
                 </div>
                 <span className="profile-avatar">
-                  {adminInitials}
+                  {adminPhoto ? (
+                    <img src={adminPhoto} alt={`${adminDisplayName} profile`} />
+                  ) : (
+                    <AdminIcon type="user" />
+                  )}
                 </span>
               </div>
 
@@ -705,7 +640,11 @@ function AdminDashboardPage({ setPage }) {
                 <div className="profile-dropdown">
                   <div className="profile-dropdown-info">
                     <span className="profile-dropdown-avatar">
-                      {adminInitials}
+                      {adminPhoto ? (
+                        <img src={adminPhoto} alt={`${adminDisplayName} profile`} />
+                      ) : (
+                        adminInitial
+                      )}
                     </span>
                     <strong>{adminDisplayName}</strong>
                     <span className="email">{admin.email || "admin@campuswallet.com"}</span>
@@ -732,51 +671,19 @@ function AdminDashboardPage({ setPage }) {
             {activeView === "dashboard" && (
               <>
                 <section className="admin-stats-grid" aria-label="Dashboard statistics">
-                  {statCards.map((card) => {
-                    const CardElement = card.modalType ? "button" : "article";
-
-                    return (
-                      <CardElement
-                        className={`admin-stat-card${card.modalType ? " admin-stat-card-button" : ""}`}
-                        key={card.label}
-                        type={card.modalType ? "button" : undefined}
-                        onClick={
-                          card.modalType
-                            ? () => setDashboardModal({ type: card.modalType, selectedId: "" })
-                            : undefined
-                        }
-                        aria-label={card.modalType ? `Show ${card.label.toLowerCase()} list` : undefined}
-                      >
-                        <div>
-                          <span>{card.label}</span>
-                          <strong>{card.value}</strong>
-                          <em>↑ {card.trend}</em>
-                        </div>
-                        <span className={`admin-stat-icon ${card.tone}`}>
-                          <AdminIcon type={card.icon} />
-                        </span>
-                      </CardElement>
-                    );
-                  })}
+                  {statCards.map((card) => (
+                    <article className="admin-stat-card" key={card.label}>
+                      <div>
+                        <span>{card.label}</span>
+                        <strong>{card.value}</strong>
+                        <em>↑ {card.trend}</em>
+                      </div>
+                      <span className={`admin-stat-icon ${card.tone}`}>
+                        <AdminIcon type={card.icon} />
+                      </span>
+                    </article>
+                  ))}
                 </section>
-
-                {dashboardModal.type && (
-                  <DashboardEntityModal
-                    type={dashboardModal.type}
-                    items={dashboardModalItems}
-                    selected={dashboardModalSelected}
-                    selectedId={dashboardModal.selectedId}
-                    getDisplayId={
-                      dashboardModal.type === "students" ? getStudentDisplayId : getVendorDisplayId
-                    }
-                    getVendorSales={getVendorSales}
-                    getVendorStatusLabel={getVendorStatusLabel}
-                    onSelect={(selectedId) =>
-                      setDashboardModal((current) => ({ ...current, selectedId }))
-                    }
-                    onClose={() => setDashboardModal({ type: "", selectedId: "" })}
-                  />
-                )}
 
                 <section className="admin-recent-section">
                   <div className="admin-section-title">
@@ -838,7 +745,9 @@ function AdminDashboardPage({ setPage }) {
                       </thead>
                       <tbody>
                         {filteredStudents.map((student, index) => {
-                          const studentId = getStudentDisplayId(student, index);
+                          const studentId = student._id?.startsWith("STU")
+                            ? student._id
+                            : `STU${String(index + 12345)}`;
 
                           return (
                             <tr key={student._id || student.email}>
@@ -919,7 +828,9 @@ function AdminDashboardPage({ setPage }) {
                       <tbody>
                         {filteredVendors.map((vendor, index) => {
                           const statusLabel = getVendorStatusLabel(vendor.vendorStatus);
-                          const vendorId = getVendorDisplayId(vendor, index);
+                          const vendorId = vendor._id?.startsWith("V")
+                            ? vendor._id
+                            : `V${String(index + 1).padStart(3, "0")}`;
 
                           return (
                             <tr key={vendor._id || vendor.email}>
@@ -1015,65 +926,64 @@ function AdminDashboardPage({ setPage }) {
 
             {activeView === "profile" && (
               <section className="admin-profile-page">
-                {!isProfileEditing && (
-                  <div className="admin-profile-grid">
+                <div className={`admin-profile-grid ${isEditingProfile ? "is-editing" : ""}`}>
+                  {!isEditingProfile ? (
                     <section className="admin-panel admin-profile-card">
-                      <div className="admin-profile-hero">
-                        <div
-                          className="admin-profile-large-photo"
-                          aria-label={`${adminDisplayName} initials`}
-                        >
-                          <span>{adminInitials}</span>
+                      <div className="admin-profile-top">
+                        <div className="admin-profile-photo">
+                          {profileForm.photo ? (
+                            <img src={profileForm.photo} alt="Profile" />
+                          ) : (
+                            <span>{(profileForm.name || "A").charAt(0).toUpperCase()}</span>
+                          )}
                         </div>
-                        <h2>{adminDisplayName}</h2>
-                        <span>Administrator</span>
+                        <div>
+                          <h2>{profileForm.name}</h2>
+                          <p>{profileForm.email}</p>
+                          <span>Administrator</span>
+                        </div>
                       </div>
-
-                      <div className="admin-profile-detail-grid">
-                        {[
-                          ["Full Name", adminDetails.name],
-                          ["Role", "Administrator"],
-                          ["Email", adminDetails.email],
-                          ["Phone Number", adminDetails.phone || "Not available"],
-                          ["Account Status", adminDetails.accountStatus || "Active"],
-                          ["Join Date", adminDetails.joinDate],
-                        ].map(([label, value]) => (
-                          <div className="admin-profile-detail-tile" key={label}>
-                            <strong>{label}</strong>
-                            <span className={label === "Account Status" ? "status-value" : ""}>{value}</span>
-                          </div>
-                        ))}
+                      <div className="admin-profile-details">
+                        <div>
+                          <strong>Full Name</strong>
+                          <span>{profileForm.name}</span>
+                        </div>
+                        <div>
+                          <strong>Email</strong>
+                          <span>{profileForm.email}</span>
+                        </div>
+                        <div>
+                          <strong>Phone Number</strong>
+                          <span>{profileForm.phone || "Not available"}</span>
+                        </div>
+                        <div>
+                          <strong>Account Status</strong>
+                          <span>{profileForm.accountStatus}</span>
+                        </div>
+                        <div>
+                          <strong>Join Date</strong>
+                          <span>{profileForm.joinDate}</span>
+                        </div>
                       </div>
-
                       <button
-                        className="admin-profile-edit-button"
                         type="button"
-                        onClick={() => setIsProfileEditing(true)}
+                        className="admin-profile-edit-button"
+                        onClick={() => setIsEditingProfile(true)}
                       >
                         Edit Profile
                       </button>
                     </section>
-                  </div>
-                )}
-
-                {isProfileEditing && (
-                  <div className="admin-profile-grid is-editing">
+                  ) : (
                     <section className="admin-panel admin-profile-edit-card">
                       <div className="admin-panel-heading">
-                        <div>
-                          <h2>Edit Profile</h2>
-                          <span>Update your admin account details</span>
-                        </div>
+                        <h2>Admin Profile</h2>
+                        <span>Update your account details</span>
                       </div>
                       <form onSubmit={handleProfileSave} className="admin-profile-form">
-                        <div className="admin-profile-photo-editor">
-                          <div
-                            className="admin-profile-photo-preview"
-                            aria-label={`${profileForm.name || "Admin"} initials`}
-                          >
-                            <span>{profileFormInitials}</span>
-                          </div>
-                        </div>
+                        <label>
+                          Profile Photo
+                          <input type="file" accept="image/*" onChange={handleProfileImage} />
+                        </label>
                         <label>
                           Full Name
                           <input
@@ -1099,19 +1009,18 @@ function AdminDashboardPage({ setPage }) {
                             name="phone"
                             value={profileForm.phone}
                             onChange={handleProfileChange}
-                            placeholder="Enter phone number"
                           />
                         </label>
                         <div className="admin-profile-form-actions">
                           <button type="submit">Save Changes</button>
-                          <button type="button" onClick={handleProfileCancel}>
+                          <button type="button" onClick={() => setIsEditingProfile(false)}>
                             Cancel
                           </button>
                         </div>
                       </form>
                     </section>
-                  </div>
-                )}
+                  )}
+                </div>
               </section>
             )}
 
@@ -1217,163 +1126,6 @@ function AdminDashboardPage({ setPage }) {
 
 function pageTitle(view) {
   return view.charAt(0).toUpperCase() + view.slice(1);
-}
-
-function DashboardEntityModal({
-  type,
-  items,
-  selected,
-  selectedId,
-  getDisplayId,
-  getVendorSales,
-  getVendorStatusLabel,
-  onSelect,
-  onClose,
-}) {
-  const isStudentList = type === "students";
-  const title = isStudentList ? "Total Students" : "Total Vendors";
-  const emptyText = isStudentList ? "No students found." : "No vendors found.";
-  const selectedIndex = items.findIndex((item, index) => getDisplayId(item, index) === selectedId);
-  const selectedDisplayId = selected ? getDisplayId(selected, selectedIndex) : "";
-
-  return (
-    <div className="dashboard-modal-backdrop" role="presentation" onMouseDown={onClose}>
-      <section
-        className="dashboard-entity-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="dashboard-entity-title"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <header className="dashboard-modal-header">
-          <div>
-            <h2 id="dashboard-entity-title">{title}</h2>
-            <p>{formatNumber(items.length)} records</p>
-          </div>
-          <button className="dashboard-modal-close" type="button" aria-label="Close popup" onClick={onClose}>
-            <AdminIcon type="x" />
-          </button>
-        </header>
-
-        <div className="dashboard-modal-body">
-          <div className="dashboard-entity-list" aria-label={`${title} list`}>
-            {items.length === 0 ? (
-              <p className="dashboard-modal-empty">{emptyText}</p>
-            ) : (
-              items.map((item, index) => {
-                const displayId = getDisplayId(item, index);
-                const active = displayId === selectedId;
-
-                return (
-                  <button
-                    className={active ? "active" : ""}
-                    key={item._id || item.email || displayId}
-                    type="button"
-                    onClick={() => onSelect(displayId)}
-                  >
-                    <span className="dashboard-entity-avatar">
-                      <AdminIcon type={isStudentList ? "user" : "store"} />
-                    </span>
-                    <span>
-                      <strong>{item.name || item.owner || "Unnamed"}</strong>
-                      <em>{displayId}</em>
-                    </span>
-                    <b>
-                      {isStudentList
-                        ? `$${Number(item.walletBalance || 0).toFixed(2)}`
-                        : formatMoney(item.walletBalance || item.balance || item.currentBalance || 0)}
-                    </b>
-                  </button>
-                );
-              })
-            )}
-          </div>
-
-          <div className="dashboard-entity-detail">
-            {selected ? (
-              isStudentList ? (
-                <>
-                  <div className="dashboard-detail-hero">
-                    <span>
-                      <AdminIcon type="user" />
-                    </span>
-                    <div>
-                      <strong>{selected.name || "Student"}</strong>
-                      <em>{selectedDisplayId}</em>
-                    </div>
-                  </div>
-                  <dl>
-                    <div>
-                      <dt>Email</dt>
-                      <dd>{selected.email || "-"}</dd>
-                    </div>
-                    <div>
-                      <dt>Phone</dt>
-                      <dd>{selected.phone || "-"}</dd>
-                    </div>
-                    <div>
-                      <dt>Wallet Balance</dt>
-                      <dd className="wallet-highlight">{`$${Number(selected.walletBalance || 0).toFixed(2)}`}</dd>
-                    </div>
-                    <div>
-                      <dt>Status</dt>
-                      <dd>{selected.accountStatus || selected.status || "Active"}</dd>
-                    </div>
-                  </dl>
-                </>
-              ) : (
-                <>
-                  <div className="dashboard-detail-hero">
-                    <span>
-                      <AdminIcon type="store" />
-                    </span>
-                    <div>
-                      <strong>{selected.name || "Vendor"}</strong>
-                      <em>{selectedDisplayId}</em>
-                    </div>
-                  </div>
-                  <dl>
-                    <div>
-                      <dt>Owner</dt>
-                      <dd>{selected.owner || selected.name || "-"}</dd>
-                    </div>
-                    <div>
-                      <dt>Email</dt>
-                      <dd>{selected.email || "-"}</dd>
-                    </div>
-                    <div>
-                      <dt>Phone</dt>
-                      <dd>{selected.phone || "-"}</dd>
-                    </div>
-                    <div>
-                      <dt>Wallet Balance</dt>
-                      <dd className="wallet-highlight">
-                        {formatMoney(selected.walletBalance || selected.balance || selected.currentBalance || 0)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Total Sales</dt>
-                      <dd>{formatMoney(getVendorSales(selected))}</dd>
-                    </div>
-                    <div>
-                      <dt>Status</dt>
-                      <dd>{getVendorStatusLabel(selected.vendorStatus)}</dd>
-                    </div>
-                  </dl>
-                </>
-              )
-            ) : (
-              <div className="dashboard-detail-placeholder">
-                <AdminIcon type={isStudentList ? "students" : "store"} />
-                <strong>Select a {isStudentList ? "student" : "vendor"}</strong>
-                <span>Wallet and account details will appear here.</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-    </div>
-  );
 }
 
 function AdminTable({ columns, rows, emptyText }) {

@@ -12,7 +12,7 @@ async function seedAdmin() {
     await mongoose.connect(process.env.MONGO_URI);
 
     const existingAdmin = await User.findOne({
-      email: "shweta@gmail.com",
+      email: "admin@gmail.com",
     });
 
     if (existingAdmin) {
@@ -20,11 +20,11 @@ async function seedAdmin() {
       process.exit();
     }
 
-    const hashedPassword = await bcrypt.hash("shub@123", 10);
+    const hashedPassword = await bcrypt.hash("Admin@123", 10);
 
     const admin = await User.create({
       name: "Super Admin",
-      email: "shweta@gmail.com",
+      email: "admin@gmail.com",
       password: hashedPassword,
       accountType: "admin",
       isVerified: true,

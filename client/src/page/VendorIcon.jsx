@@ -63,18 +63,6 @@ export const Icon = ({ type }) => {
         <path d="M4 21a8 8 0 0 1 16 0" />
       </>
     ),
-    edit: (
-      <>
-        <path d="M12 20h9" />
-        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4L16.5 3.5Z" />
-      </>
-    ),
-    x: (
-      <>
-        <path d="M18 6 6 18" />
-        <path d="m6 6 12 12" />
-      </>
-    ),
     qr: (
       <>
         <path d="M4 4h5v5H4zM15 4h5v5h-5zM4 15h5v5H4z" />

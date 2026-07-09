@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import VendorAppbar from "./VendorAppbar";
 import { vendorPageCopy } from "./VendorDashboardData";
 import VendorDashboardHomePage from "./VendorDashboardHomePage";
@@ -6,30 +6,23 @@ import VendorQrCodePage from "./VendorQrCodePage";
 import VendorSettingsPage from "./VendorSettingsPage";
 import VendorSidebar from "./VendorSidebar";
 import VendorTransactionsPage from "./VendorTransactionsPage";
+import { getProfile } from "../api/auth";
 
 const getStoredVendor = () => {
   try {
     const user = JSON.parse(localStorage.getItem("cpacUser") || "{}");
     return {
-      _id: user._id || user.id || user.email || "VEN001",
+      id: user._id || user.id || "",
       name: user.name || "Campus Cafe",
       email: user.email || "vendor@campus.edu",
-      phone: user.phone || "",
-      profilePicture: user.profilePicture || "",
-      accountStatus: user.accountStatus || "Active",
-      createdAt: user.createdAt || "",
-      vendorStatus: user.vendorStatus || "approved",
+      walletBalance: user.walletBalance || 0,
     };
   } catch {
     return {
-      _id: "VEN001",
+      id: "",
       name: "Campus Cafe",
       email: "vendor@campus.edu",
-      phone: "",
-      profilePicture: "",
-      accountStatus: "Active",
-      createdAt: "",
-      vendorStatus: "approved",
+      walletBalance: 0,
     };
   }
 };
@@ -37,6 +30,27 @@ const getStoredVendor = () => {
 function VendorDashboardPage({ setPage }) {
   const [activeView, setActiveView] = useState("dashboard");
   const [vendor, setVendor] = useState(getStoredVendor);
+
+  useEffect(() => {
+    const token = localStorage.getItem("cpacToken");
+    if (!token) return;
+    getProfile(token)
+      .then((data) => {
+        if (data.success && data.user) {
+          const safeUser = { ...data.user };
+          delete safeUser.password;
+          localStorage.setItem("cpacUser", JSON.stringify(safeUser));
+          setVendor({
+            id: safeUser._id || safeUser.id || "",
+            name: safeUser.name || "",
+            email: safeUser.email || "",
+            walletBalance: safeUser.walletBalance || 0,
+          });
+        }
+      })
+      .catch((err) => console.error("Failed to fetch profile in vendor dashboard:", err));
+  }, [activeView]);
+
 
   const handleExit = () => {
     localStorage.removeItem("cpacToken");
@@ -75,11 +89,11 @@ function VendorDashboardPage({ setPage }) {
           />
 
           {activeView === "dashboard" && (
-            <VendorDashboardHomePage onShowTransactions={() => setActiveView("transactions")} />
+            <VendorDashboardHomePage vendor={vendor} onShowTransactions={() => setActiveView("transactions")} />
           )}
           {activeView === "qr" && <VendorQrCodePage vendor={vendor} />}
-          {activeView === "transactions" && <VendorTransactionsPage />}
-          {activeView === "profile" && (
+          {activeView === "transactions" && <VendorTransactionsPage vendor={vendor} />}
+          {activeView === "settings" && (
             <VendorSettingsPage vendor={vendor} onProfileChange={setVendor} />
           )}
         </main>

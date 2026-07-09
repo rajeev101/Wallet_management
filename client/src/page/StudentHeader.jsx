@@ -1,61 +1,20 @@
-import { useCallback, useState, useEffect, useRef } from "react";
-import { getNotifications } from "../api/auth";
+import { useState, useEffect, useRef } from "react";
 import { Icon } from "./StudentIcon";
 
-const getStoredUserId = () => {
-  try {
-    const user = JSON.parse(localStorage.getItem("cpacUser") || "{}");
-    return user._id || user.id || user.email || "student";
-  } catch {
-    return "student";
-  }
-};
-
-const getDismissedStorageKey = () => `cpacStudentDismissedNotificationIds:${getStoredUserId()}`;
-
-const getDismissedNotificationIds = (storageKey) => {
-  try {
-    return new Set(JSON.parse(localStorage.getItem(storageKey) || "[]").map(String));
-  } catch {
-    return new Set();
-  }
-};
-
-const saveDismissedNotificationIds = (storageKey, ids) => {
-  localStorage.setItem(storageKey, JSON.stringify([...ids]));
-};
+const defaultNotifications = [
+  { id: 1, text: "Wallet Recharge: Your request for ₹50.00 was approved.", time: "May 28, 2026 at 10:30 AM" },
+  { id: 2, text: "Payment Successful: Paid ₹12.50 to Campus Cafe.", time: "May 28, 2026 at 2:30 PM" },
+  { id: 3, text: "Low Balance Alert: Your balance is below ₹20.00.", time: "May 24, 2026 at 1:00 PM" },
+  { id: 4, text: "Welcome to LSP! Start scan & pay on campus.", time: "May 20, 2026 at 9:00 AM" },
+];
 
 function StudentHeader({ title, dateText = "Wednesday, June 17, 2026", student, onLogout, showSearch = false }) {
-  const dismissedStorageKey = getDismissedStorageKey();
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [notifications, setNotifications] = useState([]);
+  const [notifications, setNotifications] = useState(defaultNotifications);
 
   const notifRef = useRef(null);
   const profileRef = useRef(null);
-  const dismissedStorageKeyRef = useRef(dismissedStorageKey);
-  const dismissedNotificationIdsRef = useRef(getDismissedNotificationIds(dismissedStorageKey));
-
-  const loadNotifications = useCallback(async () => {
-    const token = localStorage.getItem("cpacToken");
-    if (!token) return;
-
-    try {
-      const data = await getNotifications(token);
-      setNotifications(
-        (data.notifications || []).filter((notif) => !dismissedNotificationIdsRef.current.has(String(notif.id)))
-      );
-    } catch (notificationError) {
-      console.error("Failed to load notifications:", notificationError);
-    }
-  }, [setNotifications]);
-
-  useEffect(() => {
-    loadNotifications();
-    const timer = window.setInterval(loadNotifications, 15000);
-
-    return () => window.clearInterval(timer);
-  }, [loadNotifications]);
 
   // Close dropdowns on clicking outside
   useEffect(() => {
@@ -74,8 +33,6 @@ function StudentHeader({ title, dateText = "Wednesday, June 17, 2026", student, 
   }, []);
 
   const handleClearNotif = () => {
-    notifications.forEach((notif) => dismissedNotificationIdsRef.current.add(String(notif.id)));
-    saveDismissedNotificationIds(dismissedStorageKeyRef.current, dismissedNotificationIdsRef.current);
     setNotifications([]);
   };
 
@@ -201,7 +158,7 @@ function StudentHeader({ title, dateText = "Wednesday, June 17, 2026", student, 
               </div>
               <div className="profile-dropdown-balance">
                 <span>Wallet Balance</span>
-                <strong>${Number(user.walletBalance || 0).toFixed(2)}</strong>
+                <strong>₹{Number(user.walletBalance || 0).toFixed(2)}</strong>
               </div>
               <div className="profile-dropdown-actions">
                 <button className="logout-btn" type="button" onClick={handleLogoutClick}>

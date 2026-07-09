@@ -1,7 +1,5 @@
-const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-const API_BASE_URLS = configuredApiBaseUrl
-  ? [configuredApiBaseUrl]
-  : ["http://127.0.0.1:5050/api/v1", "http://127.0.0.1:5000/api/v1"];
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5050/api/v1";
 
 const request = async (path, payload, options = {}) => {
   const requestOptions = {
@@ -16,21 +14,7 @@ const request = async (path, payload, options = {}) => {
     requestOptions.body = JSON.stringify(payload);
   }
 
-  let response;
-  let networkError;
-
-  for (const baseUrl of API_BASE_URLS) {
-    try {
-      response = await fetch(`${baseUrl}${path}`, requestOptions);
-      break;
-    } catch (error) {
-      networkError = error;
-    }
-  }
-
-  if (!response) {
-    throw new Error(networkError?.message || "API server is not reachable");
-  }
+  const response = await fetch(`${API_BASE_URL}${path}`, requestOptions);
 
   const data = await response.json();
 
@@ -63,8 +47,14 @@ export const createWalletRequest = (payload, token) =>
 export const getWalletRequests = (token) =>
   request("/auth/wallet/requests", undefined, { method: "GET", token });
 
-export const createPayment = (payload, token) =>
-  request("/auth/payment", payload, { method: "POST", token });
+export const makePayment = (payload, token) =>
+  request("/auth/pay", payload, { method: "POST", token });
 
-export const getNotifications = (token) =>
-  request("/auth/notifications", undefined, { method: "GET", token });
+export const getMyTransactions = (token) =>
+  request("/auth/transactions", undefined, { method: "GET", token });
+
+export const getApprovedVendors = (token) =>
+  request("/auth/vendors", undefined, { method: "GET", token });
+
+export const getVendorById = (id, token) =>
+  request(`/auth/vendors/${id}`, undefined, { method: "GET", token });
