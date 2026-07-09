@@ -934,12 +934,18 @@ function AdminDashboardPage({ setPage }) {
                           {profileForm.photo ? (
                             <img src={profileForm.photo} alt="Profile" />
                           ) : (
-                            <span>{(profileForm.name || "A").charAt(0).toUpperCase()}</span>
+                            <span>
+                              {(profileForm.name || "Admin")
+                                .trim()
+                                .split(/\s+/)
+                                .slice(0, 2)
+                                .map((part) => part.charAt(0).toUpperCase())
+                                .join("")}
+                            </span>
                           )}
                         </div>
                         <div>
                           <h2>{profileForm.name}</h2>
-                          <p>{profileForm.email}</p>
                           <span>Administrator</span>
                         </div>
                       </div>
@@ -947,6 +953,10 @@ function AdminDashboardPage({ setPage }) {
                         <div>
                           <strong>Full Name</strong>
                           <span>{profileForm.name}</span>
+                        </div>
+                        <div>
+                          <strong>Role</strong>
+                          <span>Administrator</span>
                         </div>
                         <div>
                           <strong>Email</strong>
@@ -958,7 +968,7 @@ function AdminDashboardPage({ setPage }) {
                         </div>
                         <div>
                           <strong>Account Status</strong>
-                          <span>{profileForm.accountStatus}</span>
+                          <span className="admin-profile-status">{profileForm.accountStatus}</span>
                         </div>
                         <div>
                           <strong>Join Date</strong>
