@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { getProfile, updateProfile } from "../api/auth";
-import { Icon } from "./StudentIcon";
 
 const getStoredStudent = () => {
   try {
@@ -11,6 +10,7 @@ const getStoredStudent = () => {
       name: storedUser.name || "",
       email: storedUser.email || "",
       phone: storedUser.phone || "",
+      profilePicture: storedUser.profilePicture || "",
       accountType: storedUser.accountType || "student",
       walletBalance: storedUser.walletBalance || 0,
     };
@@ -20,6 +20,7 @@ const getStoredStudent = () => {
       name: "",
       email: "",
       phone: "",
+      profilePicture: "",
       accountType: "student",
       walletBalance: 0,
     };
@@ -34,15 +35,33 @@ const createStudentId = (id) => {
   return `STU${id.slice(-5).toUpperCase()}`;
 };
 
+const getNameInitials = (name = "Student") => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+
+  if (parts.length === 0) {
+    return "ST";
+  }
+
+  const firstInitial = parts[0].charAt(0);
+  const lastInitial = parts.length > 1 ? parts[parts.length - 1].charAt(0) : parts[0].charAt(1);
+
+  return `${firstInitial}${lastInitial || ""}`.toUpperCase();
+};
+
+const formatAccountType = (accountType = "student") =>
+  accountType.charAt(0).toUpperCase() + accountType.slice(1);
+
 function StudentProfilePage({ initialStudent, onProfileChange }) {
   const [student, setStudent] = useState(initialStudent || getStoredStudent);
   const [profile, setProfile] = useState({
     name: student.name,
     email: student.email,
     phone: student.phone,
+    photo: student.profilePicture,
   });
   const [status, setStatus] = useState({ message: "", type: "success" });
   const [isSaving, setIsSaving] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("cpacToken");
@@ -61,6 +80,7 @@ function StudentProfilePage({ initialStudent, onProfileChange }) {
           name: safeUser.name || "",
           email: safeUser.email || "",
           phone: safeUser.phone || "",
+          profilePicture: safeUser.profilePicture || "",
           accountType: safeUser.accountType || "student",
           walletBalance: safeUser.walletBalance || 0,
         };
@@ -72,6 +92,7 @@ function StudentProfilePage({ initialStudent, onProfileChange }) {
           name: nextStudent.name,
           email: nextStudent.email,
           phone: nextStudent.phone,
+          photo: nextStudent.profilePicture,
         });
       })
       .catch(() => {
@@ -84,6 +105,8 @@ function StudentProfilePage({ initialStudent, onProfileChange }) {
 
   const studentId = createStudentId(student.id);
   const displayName = profile.name.trim() || "Student";
+  const studentInitials = getNameInitials(displayName);
+  const profilePhoto = profile.photo || "";
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -91,6 +114,33 @@ function StudentProfilePage({ initialStudent, onProfileChange }) {
     setProfile((currentProfile) => ({
       ...currentProfile,
       [name]: value,
+    }));
+    setStatus({ message: "", type: "success" });
+  };
+
+  const handleProfileImage = (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setProfile((currentProfile) => ({
+        ...currentProfile,
+        photo: reader.result,
+      }));
+      setStatus({ message: "", type: "success" });
+    };
+    reader.readAsDataURL(file);
+    event.target.value = "";
+  };
+
+  const handleRemoveProfileImage = () => {
+    setProfile((currentProfile) => ({
+      ...currentProfile,
+      photo: "",
     }));
     setStatus({ message: "", type: "success" });
   };
@@ -117,6 +167,7 @@ function StudentProfilePage({ initialStudent, onProfileChange }) {
           name: profile.name.trim(),
           email: profile.email.trim(),
           phone: profile.phone.trim(),
+          profilePicture: profile.photo,
         },
         token
       );
@@ -127,6 +178,7 @@ function StudentProfilePage({ initialStudent, onProfileChange }) {
         name: safeUser.name || "",
         email: safeUser.email || "",
         phone: safeUser.phone || "",
+        profilePicture: safeUser.profilePicture || "",
         accountType: safeUser.accountType || "student",
         walletBalance: safeUser.walletBalance !== undefined ? safeUser.walletBalance : student.walletBalance,
       };
@@ -139,8 +191,10 @@ function StudentProfilePage({ initialStudent, onProfileChange }) {
         name: nextStudent.name,
         email: nextStudent.email,
         phone: nextStudent.phone,
+        photo: nextStudent.profilePicture,
       });
       setStatus({ message: "Profile changes saved.", type: "success" });
+      setIsEditingProfile(false);
     } catch (error) {
       setStatus({ message: error.message, type: "error" });
     } finally {
@@ -150,71 +204,155 @@ function StudentProfilePage({ initialStudent, onProfileChange }) {
 
   return (
     <section className="student-profile-view" aria-label="Student profile">
-      <aside className="profile-overview-card">
-        <span className="profile-large-avatar">
-          <Icon type="user" />
-        </span>
-        <h2>{displayName}</h2>
-        <p>Student ID: {studentId}</p>
-        <div className="profile-wallet-summary">
-          <span>Wallet Balance</span>
-          <strong>₹{Number(student.walletBalance || 0).toFixed(2)}</strong>
-        </div>
-      </aside>
-
-      <div className="profile-settings-column">
-        <form className="profile-settings-card" onSubmit={handleSubmit}>
-          <h2>Personal Information</h2>
-          <label htmlFor="studentFullName">Full Name</label>
-          <div className="profile-input">
-            <Icon type="user" />
-            <input
-              id="studentFullName"
-              name="name"
-              type="text"
-              value={profile.name}
-              onChange={handleChange}
-              placeholder="Enter full name"
-              autoComplete="name"
-            />
+      {!isEditingProfile ? (
+        <article className="profile-settings-card">
+          <div className="profile-overview-card">
+            <span className="profile-large-avatar">
+              {profilePhoto ? <img src={profilePhoto} alt={`${displayName} profile`} /> : studentInitials}
+            </span>
+            <div>
+              <h2>{displayName}</h2>
+              <span>Student</span>
+            </div>
           </div>
 
-          <label htmlFor="studentEmail">Email Address</label>
-          <div className="profile-input">
-            <Icon type="mail" />
-            <input
-              id="studentEmail"
-              name="email"
-              type="email"
-              value={profile.email}
-              onChange={handleChange}
-              placeholder="Enter email address"
-              autoComplete="email"
-            />
+          <div className="profile-details-grid">
+            <div>
+              <strong>Full Name</strong>
+              <span>{displayName}</span>
+            </div>
+            <div>
+              <strong>Student ID</strong>
+              <span>{studentId}</span>
+            </div>
+            <div>
+              <strong>Account Type</strong>
+              <span>{formatAccountType(student.accountType)}</span>
+            </div>
+            <div>
+              <strong>Email</strong>
+              <span>{profile.email || "Not available"}</span>
+            </div>
+            <div>
+              <strong>Phone Number</strong>
+              <span>{profile.phone || "Not available"}</span>
+            </div>
+            <div>
+              <strong>Wallet Balance</strong>
+              <span className="profile-wallet-value">₹{Number(student.walletBalance || 0).toFixed(2)}</span>
+            </div>
           </div>
 
-          <label htmlFor="studentPhone">Phone Number</label>
-          <div className="profile-input">
-            <Icon type="phone" />
-            <input
-              id="studentPhone"
-              name="phone"
-              type="tel"
-              value={profile.phone}
-              onChange={handleChange}
-              placeholder="Enter phone number"
-              autoComplete="tel"
-            />
-          </div>
-
-          <button className="profile-primary-button" type="submit" disabled={isSaving}>
-            {isSaving ? "Saving..." : "Save Changes"}
+          <button
+            className="profile-primary-button profile-edit-button"
+            type="button"
+            onClick={() => {
+              setStatus({ message: "", type: "success" });
+              setIsEditingProfile(true);
+            }}
+          >
+            Edit Profile
           </button>
-          {status.message && (
-            <p className={`profile-save-status ${status.type}`}>{status.message}</p>
-          )}
-        </form>
-      </div>
+        </article>
+      ) : (
+        <article className="profile-settings-card profile-edit-card">
+          <div className="profile-form-heading">
+            <h2>Edit Profile</h2>
+            <span>Update your student account details</span>
+          </div>
+          <form className="profile-edit-form" onSubmit={handleSubmit}>
+            <div className="profile-edit-photo" aria-label="Profile photo">
+              <label className="profile-photo-upload">
+                <span className="profile-large-avatar">
+                  {profilePhoto ? <img src={profilePhoto} alt={`${displayName} profile`} /> : studentInitials}
+                </span>
+                <span className="profile-photo-edit-badge" aria-hidden="true">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M5 19l4.4-1.1L18.2 9 15 5.8l-8.8 8.8L5 19Z" />
+                    <path d="M13.8 7 17 10.2" />
+                  </svg>
+                </span>
+                <input type="file" accept="image/*" onChange={handleProfileImage} />
+              </label>
+              {profilePhoto && (
+                <button className="profile-photo-remove" type="button" onClick={handleRemoveProfileImage}>
+                  Remove photo
+                </button>
+              )}
+            </div>
+
+            <label htmlFor="studentFullName">Full Name</label>
+            <div className="profile-input">
+              <input
+                id="studentFullName"
+                name="name"
+                type="text"
+                value={profile.name}
+                onChange={handleChange}
+                placeholder="Enter full name"
+                autoComplete="name"
+              />
+            </div>
+
+            <label htmlFor="studentEmail">Email Address</label>
+            <div className="profile-input">
+              <input
+                id="studentEmail"
+                name="email"
+                type="email"
+                value={profile.email}
+                onChange={handleChange}
+                placeholder="Enter email address"
+                autoComplete="email"
+              />
+            </div>
+
+            <label htmlFor="studentPhone">Phone Number</label>
+            <div className="profile-input">
+              <input
+                id="studentPhone"
+                name="phone"
+                type="tel"
+                value={profile.phone}
+                onChange={handleChange}
+                placeholder="Enter phone number"
+                autoComplete="tel"
+              />
+            </div>
+
+            <div className="profile-form-actions">
+              <button className="profile-primary-button" type="submit" disabled={isSaving}>
+                {isSaving ? "Saving..." : "Save Changes"}
+              </button>
+              <button
+                className="profile-secondary-button"
+                type="button"
+                onClick={() => {
+                  setProfile({
+                    name: student.name,
+                    email: student.email,
+                    phone: student.phone,
+                    photo: student.profilePicture,
+                  });
+                  setStatus({ message: "", type: "success" });
+                  setIsEditingProfile(false);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+            {status.message && (
+              <p className={`profile-save-status ${status.type}`}>{status.message}</p>
+            )}
+          </form>
+        </article>
+      )}
     </section>
   );
 }

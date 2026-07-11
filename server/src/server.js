@@ -11,6 +11,8 @@ const connectDB =
 
 const bootstrapAdmin =
   require("./utils/bootstrapAdmin");
+const ensureUserWallets =
+  require("./utils/ensureUserWallets");
 
 const PORT =
   process.env.PORT || 5000;
@@ -18,6 +20,11 @@ const PORT =
 const startServer = async () => {
   await connectDB();
   await bootstrapAdmin();
+  const repairedWallets = await ensureUserWallets();
+
+  if (repairedWallets > 0) {
+    console.log(`Created ${repairedWallets} missing user wallet(s).`);
+  }
 
   app.listen(PORT, () => {
     console.log(

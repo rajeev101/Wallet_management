@@ -113,6 +113,19 @@ const buildProfileForm = (user = {}) => ({
         })),
 });
 
+const getNameInitials = (name = "Admin User") => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+
+  if (parts.length === 0) {
+    return "AU";
+  }
+
+  const firstInitial = parts[0].charAt(0);
+  const lastInitial = parts.length > 1 ? parts[parts.length - 1].charAt(0) : parts[0].charAt(1);
+
+  return `${firstInitial}${lastInitial || ""}`.toUpperCase();
+};
+
 function AdminDashboardPage({ setPage }) {
   const [activeView, setActiveView] = useState("dashboard");
   const [stats, setStats] = useState(null);
@@ -533,7 +546,7 @@ function AdminDashboardPage({ setPage }) {
   const pendingWalletRequests = walletRequests.filter((request) => request.status === "pending").length;
   const adminDisplayName = admin.name || "Admin User";
   const adminPhoto = admin.profilePicture || "";
-  const adminInitial = adminDisplayName.charAt(0).toUpperCase();
+  const adminInitials = getNameInitials(adminDisplayName);
 
   const filteredTransactions = transactions.filter((transaction) => {
     const type = String(transaction.type || "").toLowerCase();
@@ -613,6 +626,8 @@ function AdminDashboardPage({ setPage }) {
                     ? "Wallet Management"
                     : activeView === "dashboard"
                       ? "Dashboard"
+                      : activeView === "profile" && isEditingProfile
+                        ? "Edit Profile"
                       : pageTitle(activeView)}
             </h1>
             <p>{activeView === "students" ? "Manage students and wallet balances" : today}</p>
@@ -677,7 +692,7 @@ function AdminDashboardPage({ setPage }) {
                   {adminPhoto ? (
                     <img src={adminPhoto} alt={`${adminDisplayName} profile`} />
                   ) : (
-                    <AdminIcon type="user" />
+                    adminInitials
                   )}
                 </span>
               </div>
@@ -689,7 +704,7 @@ function AdminDashboardPage({ setPage }) {
                       {adminPhoto ? (
                         <img src={adminPhoto} alt={`${adminDisplayName} profile`} />
                       ) : (
-                        adminInitial
+                        adminInitials
                       )}
                     </span>
                     <strong>{adminDisplayName}</strong>
@@ -993,12 +1008,11 @@ function AdminDashboardPage({ setPage }) {
                           {profileForm.photo ? (
                             <img src={profileForm.photo} alt="Profile" />
                           ) : (
-                            <span>{(profileForm.name || "A").charAt(0).toUpperCase()}</span>
+                            <span>{getNameInitials(profileForm.name)}</span>
                           )}
                         </div>
                         <div>
                           <h2>{profileForm.name}</h2>
-                          <p>{profileForm.email}</p>
                           <span>Administrator</span>
                         </div>
                       </div>
@@ -1006,6 +1020,10 @@ function AdminDashboardPage({ setPage }) {
                         <div>
                           <strong>Full Name</strong>
                           <span>{profileForm.name}</span>
+                        </div>
+                        <div>
+                          <strong>Role</strong>
+                          <span>Administrator</span>
                         </div>
                         <div>
                           <strong>Email</strong>
@@ -1017,7 +1035,7 @@ function AdminDashboardPage({ setPage }) {
                         </div>
                         <div>
                           <strong>Account Status</strong>
-                          <span>{profileForm.accountStatus}</span>
+                          <span className="admin-profile-status">{profileForm.accountStatus}</span>
                         </div>
                         <div>
                           <strong>Join Date</strong>
@@ -1035,12 +1053,18 @@ function AdminDashboardPage({ setPage }) {
                   ) : (
                     <section className="admin-panel admin-profile-edit-card">
                       <div className="admin-panel-heading">
-                        <h2>Admin Profile</h2>
+                        <h2>Edit Profile</h2>
                         <span>Update your account details</span>
                       </div>
                       <form onSubmit={handleProfileSave} className="admin-profile-form">
-                        <label>
-                          Profile Photo
+                        <label className="admin-profile-edit-photo" aria-label="Profile photo">
+                          <span className="admin-profile-photo">
+                            {profileForm.photo ? (
+                              <img src={profileForm.photo} alt="Profile" />
+                            ) : (
+                              <span>{getNameInitials(profileForm.name)}</span>
+                            )}
+                          </span>
                           <input type="file" accept="image/*" onChange={handleProfileImage} />
                         </label>
                         <label>
