@@ -1,0 +1,42 @@
+export const transactions = [
+  {
+    id: "TXN001",
+    vendor: "Campus Cafe",
+    amount: "-₹12.50",
+    date: "May 28, 2026",
+    time: "2:30 PM",
+    status: "Completed",
+  },
+  {
+    id: "TXN002",
+    vendor: "Wallet Recharge",
+    amount: "+₹50.00",
+    date: "May 27, 2026",
+    time: "10:15 AM",
+    status: "Completed",
+  },
+  {
+    id: "TXN003",
+    vendor: "Library Store",
+    amount: "-₹8.00",
+    date: "May 26, 2026",
+    time: "4:45 PM",
+    status: "Completed",
+  },
+  {
+    id: "TXN004",
+    vendor: "Sports Shop",
+    amount: "-₹25.00",
+    date: "May 25, 2026",
+    time: "11:20 AM",
+    status: "Completed",
+  },
+  {
+    id: "TXN005",
+    vendor: "Campus Cafe",
+    amount: "-₹15.75",
+    date: "May 24, 2026",
+    time: "1:00 PM",
+    status: "Completed",
+  },
+];
