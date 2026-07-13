@@ -97,9 +97,7 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
     }
 
     try {
-      const storedUser = JSON.parse(
-        localStorage.getItem("cpacUser") || "{}"
-      );
+      const storedUser = JSON.parse(localStorage.getItem("cpacUser") || "{}");
 
       return {
         name: storedUser.name || "Campus Cafe",
