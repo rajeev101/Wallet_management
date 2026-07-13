@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import StudentHeader from "./StudentHeader";
 import { getProfile, updateProfile } from "../api/auth";
 
 const getStoredStudent = () => {
@@ -51,7 +52,7 @@ const getNameInitials = (name = "Student") => {
 const formatAccountType = (accountType = "student") =>
   accountType.charAt(0).toUpperCase() + accountType.slice(1);
 
-function StudentProfilePage({ initialStudent, onProfileChange }) {
+function StudentProfilePage({ initialStudent, onProfileChange, onLogout }) {
   const [student, setStudent] = useState(initialStudent || getStoredStudent);
   const [profile, setProfile] = useState({
     name: student.name,
@@ -62,6 +63,9 @@ function StudentProfilePage({ initialStudent, onProfileChange }) {
   const [status, setStatus] = useState({ message: "", type: "success" });
   const [isSaving, setIsSaving] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isPhotoMenuOpen, setIsPhotoMenuOpen] = useState(false);
+  const photoMenuRef = useRef(null);
+  const photoInputRef = useRef(null);
 
   useEffect(() => {
     const token = localStorage.getItem("cpacToken");
@@ -103,6 +107,17 @@ function StudentProfilePage({ initialStudent, onProfileChange }) {
       });
   }, []);
 
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (photoMenuRef.current && !photoMenuRef.current.contains(event.target)) {
+        setIsPhotoMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const studentId = createStudentId(student.id);
   const displayName = profile.name.trim() || "Student";
   const studentInitials = getNameInitials(displayName);
@@ -135,6 +150,7 @@ function StudentProfilePage({ initialStudent, onProfileChange }) {
     };
     reader.readAsDataURL(file);
     event.target.value = "";
+    setIsPhotoMenuOpen(false);
   };
 
   const handleRemoveProfileImage = () => {
@@ -143,6 +159,7 @@ function StudentProfilePage({ initialStudent, onProfileChange }) {
       photo: "",
     }));
     setStatus({ message: "", type: "success" });
+    setIsPhotoMenuOpen(false);
   };
 
   const handleSubmit = async (event) => {
@@ -195,6 +212,7 @@ function StudentProfilePage({ initialStudent, onProfileChange }) {
       });
       setStatus({ message: "Profile changes saved.", type: "success" });
       setIsEditingProfile(false);
+      setIsPhotoMenuOpen(false);
     } catch (error) {
       setStatus({ message: error.message, type: "error" });
     } finally {
@@ -203,8 +221,15 @@ function StudentProfilePage({ initialStudent, onProfileChange }) {
   };
 
   return (
-    <section className="student-profile-view" aria-label="Student profile">
-      {!isEditingProfile ? (
+    <>
+      <StudentHeader
+        title="Profile"
+        dateText="Manage your personal information"
+        student={{ ...student, profilePicture: profile.photo }}
+        onLogout={onLogout}
+      />
+      <section className="student-profile-view" aria-label="Student profile">
+        {!isEditingProfile ? (
         <article className="profile-settings-card">
           <div className="profile-overview-card">
             <span className="profile-large-avatar">
@@ -254,7 +279,7 @@ function StudentProfilePage({ initialStudent, onProfileChange }) {
             Edit Profile
           </button>
         </article>
-      ) : (
+        ) : (
         <article className="profile-settings-card profile-edit-card">
           <div className="profile-form-heading">
             <h2>Edit Profile</h2>
@@ -262,11 +287,19 @@ function StudentProfilePage({ initialStudent, onProfileChange }) {
           </div>
           <form className="profile-edit-form" onSubmit={handleSubmit}>
             <div className="profile-edit-photo" aria-label="Profile photo">
-              <label className="profile-photo-upload">
-                <span className="profile-large-avatar">
-                  {profilePhoto ? <img src={profilePhoto} alt={`${displayName} profile`} /> : studentInitials}
-                </span>
-                <span className="profile-photo-edit-badge" aria-hidden="true">
+              <div className="profile-photo-upload" ref={photoMenuRef}>
+                <label>
+                  <span className="profile-large-avatar">
+                    {profilePhoto ? <img src={profilePhoto} alt={`${displayName} profile`} /> : studentInitials}
+                  </span>
+                  <input ref={photoInputRef} type="file" accept="image/*" onChange={handleProfileImage} />
+                </label>
+                <button
+                  className="profile-photo-edit-badge"
+                  type="button"
+                  aria-label="Edit profile photo"
+                  onClick={() => setIsPhotoMenuOpen((isOpen) => !isOpen)}
+                >
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
@@ -277,14 +310,43 @@ function StudentProfilePage({ initialStudent, onProfileChange }) {
                     <path d="M5 19l4.4-1.1L18.2 9 15 5.8l-8.8 8.8L5 19Z" />
                     <path d="M13.8 7 17 10.2" />
                   </svg>
-                </span>
-                <input type="file" accept="image/*" onChange={handleProfileImage} />
-              </label>
-              {profilePhoto && (
-                <button className="profile-photo-remove" type="button" onClick={handleRemoveProfileImage}>
-                  Remove photo
                 </button>
-              )}
+
+                {isPhotoMenuOpen && (
+                  <div className="profile-photo-dropdown" role="menu" aria-label="Profile photo options">
+                    <button
+                      className="profile-photo-dropdown-item"
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        photoInputRef.current?.click();
+                        setIsPhotoMenuOpen(false);
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4 7h4l2-3h4l2 3h4v11H4V7Z" />
+                        <circle cx="12" cy="12" r="3.5" />
+                      </svg>
+                      Change Photo
+                    </button>
+                    {profilePhoto && (
+                      <button
+                        className="profile-photo-dropdown-item danger"
+                        type="button"
+                        role="menuitem"
+                        onClick={handleRemoveProfileImage}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M4 7h16" />
+                          <path d="M9 7V5h6v2" />
+                          <path d="M7 7l1 13h8l1-13" />
+                        </svg>
+                        Remove Photo
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             <label htmlFor="studentFullName">Full Name</label>
@@ -352,8 +414,9 @@ function StudentProfilePage({ initialStudent, onProfileChange }) {
             )}
           </form>
         </article>
-      )}
-    </section>
+        )}
+      </section>
+    </>
   );
 }
 
