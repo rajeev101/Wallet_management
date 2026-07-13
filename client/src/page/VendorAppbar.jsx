@@ -2,6 +2,22 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "./VendorIcon";
 import { clearNotifications, getNotifications } from "../api/auth";
 
+const getNameInitials = (name = "Vendor") => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+
+  if (parts.length === 0) {
+    return "VN";
+  }
+
+  const firstInitial = parts[0].charAt(0);
+  const lastInitial =
+    parts.length > 1
+      ? parts[parts.length - 1].charAt(0)
+      : parts[0].charAt(1);
+
+  return `${firstInitial}${lastInitial || ""}`.toUpperCase();
+};
+
 function VendorAppbar({ title, vendor = {}, onLogout }) {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -10,17 +26,19 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
   const notifRef = useRef(null);
   const profileRef = useRef(null);
 
-  // Close dropdowns on clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (notifRef.current && !notifRef.current.contains(event.target)) {
         setIsNotifOpen(false);
       }
+
       if (profileRef.current && !profileRef.current.contains(event.target)) {
         setIsProfileOpen(false);
       }
     }
+
     document.addEventListener("mousedown", handleClickOutside);
+
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
@@ -40,7 +58,9 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
     };
 
     loadNotifications();
+
     const interval = window.setInterval(loadNotifications, 5000);
+
     return () => window.clearInterval(interval);
   }, []);
 
@@ -69,11 +89,18 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
 
   const getVendorInfo = () => {
     if (vendor && (vendor.name || vendor.email)) {
-      return vendor;
+      return {
+        name: vendor.name || "Campus Cafe",
+        email: vendor.email || "vendor@campus.edu",
+        profilePicture: vendor.profilePicture || "",
+      };
     }
 
     try {
-      const storedUser = JSON.parse(localStorage.getItem("cpacUser") || "{}");
+      const storedUser = JSON.parse(
+        localStorage.getItem("cpacUser") || "{}"
+      );
+
       return {
         name: storedUser.name || "Campus Cafe",
         email: storedUser.email || "vendor@campus.edu",
@@ -89,8 +116,11 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
   };
 
   const vendorInfo = getVendorInfo();
+
   const displayName = vendorInfo.name || "Campus Cafe";
   const displayEmail = vendorInfo.email || "vendor@campus.edu";
+  const profilePhoto = vendorInfo.profilePicture || "";
+  const vendorInitials = getNameInitials(displayName);
 
   return (
     <div className="vendor-appbar">
@@ -98,8 +128,8 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
         <h2>{title}</h2>
         <p>Thursday, June 18, 2026</p>
       </div>
+
       <div className="vendor-appbar-actions">
-        {/* Notification Bell Wrapper */}
         <div className="notification-wrapper" ref={notifRef}>
           <button
             className={`vendor-notification${isNotifOpen ? " active" : ""}`}
@@ -118,29 +148,42 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
             <div className="notification-dropdown">
               <div className="dropdown-header">
                 <h3>Notifications</h3>
+
                 {notifications.length > 0 && (
-                  <button className="clear-btn" type="button" onClick={handleClearNotif}>
+                  <button
+                    className="clear-btn"
+                    type="button"
+                    onClick={handleClearNotif}
+                  >
                     Clear All
                   </button>
                 )}
               </div>
+
               <div className="notification-list">
                 {notifications.length > 0 ? (
                   notifications.map((notif) => (
-                    <div key={notif._id} className="notification-item">
+                    <div
+                      key={notif._id}
+                      className="notification-item"
+                    >
                       <p>{notif.text}</p>
-                      <span className="notif-time">{new Date(notif.createdAt).toLocaleString()}</span>
+
+                      <span className="notif-time">
+                        {new Date(notif.createdAt).toLocaleString()}
+                      </span>
                     </div>
                   ))
                 ) : (
-                  <div className="notification-empty">No new notifications</div>
+                  <div className="notification-empty">
+                    No new notifications
+                  </div>
                 )}
               </div>
             </div>
           )}
         </div>
 
-        {/* Profile Wrapper */}
         <div className="profile-wrapper" ref={profileRef}>
           <div
             className="profile-trigger-area"
@@ -153,11 +196,15 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
               <strong>{displayName}</strong>
               <span>{displayEmail}</span>
             </div>
+
             <span className="vendor-avatar">
-              {vendorInfo.profilePicture ? (
-                <img src={vendorInfo.profilePicture} alt={`${displayName} avatar`} />
+              {profilePhoto ? (
+                <img
+                  src={profilePhoto}
+                  alt={`${displayName} profile`}
+                />
               ) : (
-                <Icon type="user" />
+                vendorInitials
               )}
             </span>
           </div>
@@ -166,20 +213,36 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
             <div className="profile-dropdown">
               <div className="profile-dropdown-info">
                 <span className="profile-dropdown-avatar">
-                  {vendorInfo.profilePicture ? (
-                    <img src={vendorInfo.profilePicture} alt={`${displayName} avatar`} />
+                  {profilePhoto ? (
+                    <img
+                      src={profilePhoto}
+                      alt={`${displayName} profile`}
+                    />
                   ) : (
-                    displayName.charAt(0).toUpperCase()
+                    vendorInitials
                   )}
                 </span>
+
                 <strong>{displayName}</strong>
-                <span className="email">{displayEmail}</span>
-                <span className="badge" style={{ textTransform: "capitalize" }}>
+
+                <span className="email">
+                  {displayEmail}
+                </span>
+
+                <span
+                  className="badge"
+                  style={{ textTransform: "capitalize" }}
+                >
                   Vendor Account
                 </span>
               </div>
+
               <div className="profile-dropdown-actions">
-                <button className="logout-btn" type="button" onClick={handleLogoutClick}>
+                <button
+                  className="logout-btn"
+                  type="button"
+                  onClick={handleLogoutClick}
+                >
                   Logout
                 </button>
               </div>
