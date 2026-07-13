@@ -32,9 +32,33 @@ const getStoredStudent = () => {
   }
 };
 
+const studentPageCopy = {
+  dashboard: {
+    title: "Dashboard",
+    subtitle: "Overview of your wallet and recent activity.",
+  },
+  scan: {
+    title: "Scan to Pay",
+    subtitle: "Scan a QR code to make a secure payment.",
+  },
+  transactions: {
+    title: "Transactions",
+    subtitle: "View your complete transaction history.",
+  },
+  addMoney: {
+    title: "Add Money",
+    subtitle: "Recharge your wallet securely.",
+  },
+  profile: {
+    title: "Profile",
+    subtitle: "Manage your personal information.",
+  },
+};
+
 function StudentDashboardPage({ setPage }) {
   const [activeView, setActiveView] = useState("dashboard");
   const [student, setStudent] = useState(getStoredStudent);
+  const { title, subtitle } = studentPageCopy[activeView] || studentPageCopy.dashboard;
 
   const fetchLatestProfile = () => {
     const token = localStorage.getItem("cpacToken");
@@ -126,27 +150,6 @@ function StudentDashboardPage({ setPage }) {
       status: t.status ? t.status.charAt(0).toUpperCase() + t.status.slice(1) : "Completed",
     };
   });
-
-  // Calculate statistics for the dashboard cards dynamically
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth();
-
-  const currentMonthTxns = rawTransactions.filter((t) => {
-    const d = new Date(t.createdAt);
-    return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
-  });
-
-  const currentMonthPayments = currentMonthTxns.filter((t) => t.type === "payment" && t.status === "completed");
-  const currentMonthTopups = currentMonthTxns.filter((t) => t.type === "wallet_topup" && t.status === "completed");
-
-  const totalSpent = currentMonthPayments.reduce((sum, t) => sum + t.amount, 0);
-  const spentCount = currentMonthPayments.length;
-
-  const totalAdded = currentMonthTopups.reduce((sum, t) => sum + t.amount, 0);
-  const addedCount = currentMonthTopups.length;
-
-  const avgTransaction = spentCount > 0 ? totalSpent / spentCount : 0;
 
   const handleExit = () => {
     localStorage.removeItem("cpacToken");
@@ -241,39 +244,27 @@ function StudentDashboardPage({ setPage }) {
               </section>
 
               <section className="stats-grid" aria-label="Wallet statistics">
-                <article 
-                  className="stat-card" 
-                  style={{ cursor: "pointer" }} 
-                  onClick={() => setActiveModal("spend")}
-                >
+                <article className="stat-card">
                   <div>
                     <p>This Month Spent</p>
-                    <strong>₹{totalSpent.toFixed(2)}</strong>
-                    <span>{spentCount} transactions</span>
+                    <strong>₹154.20</strong>
+                    <span>24 transactions</span>
                   </div>
                   <span className="stat-icon spent"><Icon type="up" /></span>
                 </article>
-                <article 
-                  className="stat-card" 
-                  style={{ cursor: "pointer" }} 
-                  onClick={() => setActiveModal("add")}
-                >
+                <article className="stat-card">
                   <div>
                     <p>Added This Month</p>
-                    <strong>₹{totalAdded.toFixed(2)}</strong>
-                    <span>{addedCount} recharges</span>
+                    <strong>₹200.00</strong>
+                    <span>2 recharges</span>
                   </div>
                   <span className="stat-icon added"><Icon type="down" /></span>
                 </article>
-                <article 
-                  className="stat-card" 
-                  style={{ cursor: "pointer" }} 
-                  onClick={() => setActiveModal("avg")}
-                >
+                <article className="stat-card">
                   <div>
                     <p>Avg. Transaction</p>
-                    <strong>₹{avgTransaction.toFixed(2)}</strong>
-                    <span>This month</span>
+                    <strong>₹6.42</strong>
+                    <span>Last 30 days</span>
                   </div>
                   <span className="stat-icon average"><Icon type="clock" /></span>
                 </article>
@@ -353,16 +344,8 @@ function StudentDashboardPage({ setPage }) {
           )}
         </main>
       </div>
-
-      {activeModal && (
-        <StatDetailModal 
-          type={activeModal} 
-          onClose={() => setActiveModal(null)} 
-        />
-      )}
     </div>
   );
 }
 
- 
 export default StudentDashboardPage;
