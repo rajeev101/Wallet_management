@@ -34,7 +34,7 @@ const getStoredStudent = () => {
 
 const studentPageCopy = {
   dashboard: {
-    title: "Dashboard",
+    title: "Student Dashboard",
     subtitle: "Overview of your wallet and recent activity.",
   },
   scan: {
