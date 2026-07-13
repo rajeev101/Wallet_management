@@ -15,6 +15,9 @@ const getStoredVendor = () => {
       id: user._id || user.id || "",
       name: user.name || "Campus Cafe",
       email: user.email || "vendor@campus.edu",
+      phone: user.phone || "",
+      profilePicture: user.profilePicture || "",
+      accountType: user.accountType || "vendor",
       walletBalance: user.walletBalance || 0,
     };
   } catch {
@@ -22,6 +25,9 @@ const getStoredVendor = () => {
       id: "",
       name: "Campus Cafe",
       email: "vendor@campus.edu",
+      phone: "",
+      profilePicture: "",
+      accountType: "vendor",
       walletBalance: 0,
     };
   }
@@ -44,6 +50,9 @@ function VendorDashboardPage({ setPage }) {
             id: safeUser._id || safeUser.id || "",
             name: safeUser.name || "",
             email: safeUser.email || "",
+            phone: safeUser.phone || "",
+            profilePicture: safeUser.profilePicture || "",
+            accountType: safeUser.accountType || "vendor",
             walletBalance: safeUser.walletBalance || 0,
           });
         }

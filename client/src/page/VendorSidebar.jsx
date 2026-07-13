@@ -46,8 +46,8 @@ function VendorSidebar({ activeView, onChangeView, onLogout }) {
           type="button"
           onClick={() => onChangeView("settings")}
         >
-          <Icon type="settings" />
-          Settings
+          <Icon type="user" />
+          Profile
         </button>
       </nav>
 

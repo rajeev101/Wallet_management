@@ -42,4 +42,5 @@ export const vendorPageCopy = {
   qr: ["Vendor QR Code", "Generate and manage payment QR codes"],
   transactions: ["Vendor Transactions", "Review customer payments"],
   profile: ["Vendor Profile", "Manage vendor profile details"],
+  settings: ["Vendor Profile", "Manage vendor profile details"],
 };

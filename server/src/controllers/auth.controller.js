@@ -15,14 +15,11 @@ exports.signup = async (req, res) => {
   try {
     const { name, email, password, accountType } = req.body;
     const requestedAccountType = String(accountType || "student").toLowerCase();
-    const normalizedAccountType = ["student", "vendor"].includes(requestedAccountType)
-      ? requestedAccountType
-      : "student";
 
-    if (requestedAccountType === "admin") {
-      return res.status(403).json({
+    if (!["student", "vendor"].includes(requestedAccountType)) {
+      return res.status(400).json({
         success: false,
-        message: "Admin accounts cannot be created from signup",
+        message: "Account type must be student or vendor",
       });
     }
 
@@ -53,17 +50,25 @@ exports.signup = async (req, res) => {
       name,
       email: email.toLowerCase().trim(),
       password: hashedPassword,
-      accountType: normalizedAccountType,
+      accountType: requestedAccountType,
     });
 
-    const wallet = await Wallet.create({
-      owner: user._id,
-      balance: 0,
-      ownerType: normalizedAccountType,
-      status: "active",
-    });
+    let wallet;
+
+    try {
+      wallet = await Wallet.create({
+        owner: user._id,
+        balance: 0,
+        ownerType: requestedAccountType,
+        status: "active",
+      });
+    } catch (walletError) {
+      await User.deleteOne({ _id: user._id });
+      throw walletError;
+    }
 
     const safeUser = user.toObject();
+    delete safeUser.password;
     safeUser.walletBalance = wallet.balance;
 
     res.status(201).json({
