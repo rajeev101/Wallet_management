@@ -2,19 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "./VendorIcon";
 import { clearNotifications, getNotifications } from "../api/auth";
 
-const getNameInitials = (name = "Vendor") => {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-
-  if (parts.length === 0) {
-    return "VN";
-  }
-
-  const firstInitial = parts[0].charAt(0);
-  const lastInitial = parts.length > 1 ? parts[parts.length - 1].charAt(0) : parts[0].charAt(1);
-
-  return `${firstInitial}${lastInitial || ""}`.toUpperCase();
-};
-
 function VendorAppbar({ title, vendor = {}, onLogout }) {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -82,8 +69,6 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
 
   const displayName = vendor.name || "Campus Cafe";
   const displayEmail = vendor.email || "vendor@campus.edu";
-  const profilePhoto = vendor.profilePicture || "";
-  const vendorInitials = getNameInitials(displayName);
 
   return (
     <div className="vendor-appbar">
@@ -147,7 +132,7 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
               <span>{displayEmail}</span>
             </div>
             <span className="vendor-avatar">
-              {profilePhoto ? <img src={profilePhoto} alt={`${displayName} profile`} /> : vendorInitials}
+              <Icon type="user" />
             </span>
           </div>
 
@@ -155,7 +140,7 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
             <div className="profile-dropdown">
               <div className="profile-dropdown-info">
                 <span className="profile-dropdown-avatar">
-                  {profilePhoto ? <img src={profilePhoto} alt={`${displayName} profile`} /> : vendorInitials}
+                  {displayName.charAt(0).toUpperCase()}
                 </span>
                 <strong>{displayName}</strong>
                 <span className="email">{displayEmail}</span>

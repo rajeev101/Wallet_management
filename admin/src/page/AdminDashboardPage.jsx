@@ -373,15 +373,8 @@ function AdminDashboardPage({ setPage }) {
     const reader = new FileReader();
     reader.onload = () => {
       setProfileForm((prev) => ({ ...prev, photo: reader.result }));
-      clearAlerts();
     };
     reader.readAsDataURL(file);
-    event.target.value = "";
-  };
-
-  const handleRemoveProfileImage = () => {
-    setProfileForm((prev) => ({ ...prev, photo: "" }));
-    clearAlerts();
   };
 
   const handleProfileSave = async (event) => {
@@ -930,6 +923,13 @@ function AdminDashboardPage({ setPage }) {
                                 <div className="vendor-row-actions">
                                   <button
                                     type="button"
+                                    aria-label={`Show QR code for ${vendor.name}`}
+                                    onClick={() => showMessage(`QR tools for ${vendor.name} are ready for setup.`)}
+                                  >
+                                    <AdminIcon type="qr" />
+                                  </button>
+                                  <button
+                                    type="button"
                                     aria-label={`Approve ${vendor.name}`}
                                     onClick={() => handleVendorStatus(vendor._id, "approve")}
                                     disabled={vendor._id?.startsWith("V")}
@@ -1057,35 +1057,16 @@ function AdminDashboardPage({ setPage }) {
                         <span>Update your account details</span>
                       </div>
                       <form onSubmit={handleProfileSave} className="admin-profile-form">
-                        <div className="admin-profile-edit-photo" aria-label="Profile photo">
-                          <label className="admin-profile-photo-upload">
-                            <span className="admin-profile-photo">
-                              {profileForm.photo ? (
-                                <img src={profileForm.photo} alt="Profile" />
-                              ) : (
-                                <span>{getNameInitials(profileForm.name)}</span>
-                              )}
-                            </span>
-                            <span className="admin-profile-photo-edit-badge" aria-hidden="true">
-                              <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              >
-                                <path d="M5 19l4.4-1.1L18.2 9 15 5.8l-8.8 8.8L5 19Z" />
-                                <path d="M13.8 7 17 10.2" />
-                              </svg>
-                            </span>
-                            <input type="file" accept="image/*" onChange={handleProfileImage} />
-                          </label>
-                          {profileForm.photo && (
-                            <button className="admin-profile-photo-remove" type="button" onClick={handleRemoveProfileImage}>
-                              Remove photo
-                            </button>
-                          )}
-                        </div>
+                        <label className="admin-profile-edit-photo" aria-label="Profile photo">
+                          <span className="admin-profile-photo">
+                            {profileForm.photo ? (
+                              <img src={profileForm.photo} alt="Profile" />
+                            ) : (
+                              <span>{getNameInitials(profileForm.name)}</span>
+                            )}
+                          </span>
+                          <input type="file" accept="image/*" onChange={handleProfileImage} />
+                        </label>
                         <label>
                           Full Name
                           <input
@@ -1115,14 +1096,7 @@ function AdminDashboardPage({ setPage }) {
                         </label>
                         <div className="admin-profile-form-actions">
                           <button type="submit">Save Changes</button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setProfileForm(buildProfileForm(admin));
-                              clearAlerts();
-                              setIsEditingProfile(false);
-                            }}
-                          >
+                          <button type="button" onClick={() => setIsEditingProfile(false)}>
                             Cancel
                           </button>
                         </div>
