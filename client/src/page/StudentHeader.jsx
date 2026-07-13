@@ -2,7 +2,14 @@ import { useState, useEffect, useRef } from "react";
 import { Icon } from "./StudentIcon";
 import { clearNotifications, getNotifications } from "../api/auth";
 
-function StudentHeader({ title, dateText = "Wednesday, June 17, 2026", student, onLogout, showSearch = false }) {
+function StudentHeader({
+  title,
+  dateText = "Wednesday, June 17, 2026",
+  student,
+  onLogout,
+  showSearch = false,
+  rightOnly = false,
+}) {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -77,13 +84,17 @@ function StudentHeader({ title, dateText = "Wednesday, June 17, 2026", student, 
       return {
         name: storedUser.name || "Student",
         email: storedUser.email || "student@lsp.com",
-        accountType: storedUser.accountType || "student"
+        accountType: storedUser.accountType || "student",
+        profilePicture: storedUser.profilePicture || "",
+        walletBalance: storedUser.walletBalance || 0,
       };
     } catch {
       return {
         name: "Student",
         email: "student@lsp.com",
-        accountType: "student"
+        accountType: "student",
+        profilePicture: "",
+        walletBalance: 0,
       };
     }
   };
@@ -91,104 +102,114 @@ function StudentHeader({ title, dateText = "Wednesday, June 17, 2026", student, 
   const user = getStudentInfo();
   const displayName = user.name || "Student";
 
+  const userSection = (
+    <div className="history-profile">
+      {showSearch && (
+        <label className="compact-search">
+          <Icon type="search" />
+          <input type="search" placeholder="Search..." />
+        </label>
+      )}
+
+      <div className="notification-wrapper" ref={notifRef}>
+        <button
+          className={`notification-button${isNotifOpen ? " active" : ""}`}
+          type="button"
+          aria-label="Notifications"
+          onClick={() => {
+            setIsNotifOpen(!isNotifOpen);
+            setIsProfileOpen(false);
+          }}
+        >
+          <Icon type="bell" />
+          {notifications.length > 0 && <span />}
+        </button>
+
+        {isNotifOpen && (
+          <div className="notification-dropdown">
+            <div className="dropdown-header">
+              <h3>Notifications</h3>
+              {notifications.length > 0 && (
+                <button className="clear-btn" type="button" onClick={handleClearNotif}>
+                  Clear All
+                </button>
+              )}
+            </div>
+            <div className="notification-list">
+              {notifications.length > 0 ? (
+                notifications.map((notif) => (
+                  <div key={notif._id} className="notification-item">
+                    <p>{notif.text}</p>
+                    <span className="notif-time">{new Date(notif.createdAt).toLocaleString()}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="notification-empty">No new notifications</div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="profile-wrapper" ref={profileRef}>
+        <div
+          className="profile-trigger-area"
+          onClick={() => {
+            setIsProfileOpen(!isProfileOpen);
+            setIsNotifOpen(false);
+          }}
+        >
+          <div className="profile-summary">
+            <strong>{displayName}</strong>
+            <span style={{ textTransform: "capitalize" }}>{user.accountType || "Student"}</span>
+          </div>
+          <span className="profile-avatar">
+            {user.profilePicture ? <img src={user.profilePicture} alt={`${displayName} avatar`} /> : <Icon type="user" />}
+          </span>
+        </div>
+
+        {isProfileOpen && (
+          <div className="profile-dropdown">
+            <div className="profile-dropdown-info">
+              <span className="profile-dropdown-avatar">
+                {user.profilePicture ? (
+                  <img src={user.profilePicture} alt={`${displayName} avatar`} />
+                ) : (
+                  displayName.charAt(0).toUpperCase()
+                )}
+              </span>
+              <strong>{displayName}</strong>
+              <span className="email">{user.email || "student@lsp.com"}</span>
+              <span className="badge" style={{ textTransform: "capitalize" }}>
+                {user.accountType || "student"} Account
+              </span>
+            </div>
+            <div className="profile-dropdown-balance">
+              <span>Wallet Balance</span>
+              <strong>₹{Number(user.walletBalance || 0).toFixed(2)}</strong>
+            </div>
+            <div className="profile-dropdown-actions">
+              <button className="logout-btn" type="button" onClick={handleLogoutClick}>
+                Logout
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  if (rightOnly) {
+    return userSection;
+  }
+
   return (
     <div className="history-appbar">
       <div>
         <h2>{title}</h2>
         <p>{dateText}</p>
       </div>
-      <div className="history-profile">
-        {showSearch && (
-          <label className="compact-search">
-            <Icon type="search" />
-            <input type="search" placeholder="Search..." />
-          </label>
-        )}
-
-        {/* Notification Bell Wrapper */}
-        <div className="notification-wrapper" ref={notifRef}>
-          <button
-            className={`notification-button${isNotifOpen ? " active" : ""}`}
-            type="button"
-            aria-label="Notifications"
-            onClick={() => {
-              setIsNotifOpen(!isNotifOpen);
-              setIsProfileOpen(false);
-            }}
-          >
-            <Icon type="bell" />
-            {notifications.length > 0 && <span />}
-          </button>
-
-          {isNotifOpen && (
-            <div className="notification-dropdown">
-              <div className="dropdown-header">
-                <h3>Notifications</h3>
-                {notifications.length > 0 && (
-                  <button className="clear-btn" type="button" onClick={handleClearNotif}>
-                    Clear All
-                  </button>
-                )}
-              </div>
-              <div className="notification-list">
-                {notifications.length > 0 ? (
-                  notifications.map((notif) => (
-                    <div key={notif._id} className="notification-item">
-                      <p>{notif.text}</p>
-                      <span className="notif-time">{new Date(notif.createdAt).toLocaleString()}</span>
-                    </div>
-                  ))
-                ) : (
-                  <div className="notification-empty">No new notifications</div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Profile Wrapper */}
-        <div className="profile-wrapper" ref={profileRef}>
-          <div
-            className="profile-trigger-area"
-            onClick={() => {
-              setIsProfileOpen(!isProfileOpen);
-              setIsNotifOpen(false);
-            }}
-          >
-            <div className="profile-summary">
-              <strong>{displayName}</strong>
-              <span style={{ textTransform: "capitalize" }}>{user.accountType || "Student"}</span>
-            </div>
-            <span className="profile-avatar">
-              <Icon type="user" />
-            </span>
-          </div>
-
-          {isProfileOpen && (
-            <div className="profile-dropdown">
-              <div className="profile-dropdown-info">
-                <span className="profile-dropdown-avatar">
-                  {displayName.charAt(0).toUpperCase()}
-                </span>
-                <strong>{displayName}</strong>
-                <span className="email">{user.email || "student@lsp.com"}</span>
-                <span className="badge" style={{ textTransform: "capitalize" }}>
-                  {user.accountType || "student"} Account
-                </span>
-              </div>
-              <div className="profile-dropdown-balance">
-                <span>Wallet Balance</span>
-                <strong>₹{Number(user.walletBalance || 0).toFixed(2)}</strong>
-              </div>
-              <div className="profile-dropdown-actions">
-                <button className="logout-btn" type="button" onClick={handleLogoutClick}>
-                  Logout
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      {userSection}
     </div>
   );
 }

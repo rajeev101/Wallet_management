@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import StudentAddMoneyPage from "./StudentAddMoneyPage";
+import StudentHeader from "./StudentHeader";
 import StudentProfilePage from "./StudentProfilePage";
 import StudentScanPayPage from "./StudentScanPayPage";
 import StudentTransactionsPage from "./StudentTransactionsPage";
@@ -15,6 +16,7 @@ const getStoredStudent = () => {
       name: storedUser.name || "",
       email: storedUser.email || "",
       phone: storedUser.phone || "",
+      profilePicture: storedUser.profilePicture || "",
       accountType: storedUser.accountType || "student",
       walletBalance: storedUser.walletBalance || 0,
     };
@@ -24,14 +26,39 @@ const getStoredStudent = () => {
       name: "",
       email: "",
       phone: "",
+      profilePicture: "",
       accountType: "student",
     };
   }
 };
 
+const studentPageCopy = {
+  dashboard: {
+    title: "Dashboard",
+    subtitle: "Overview of your wallet and recent activity.",
+  },
+  scan: {
+    title: "Scan to Pay",
+    subtitle: "Scan a QR code to make a secure payment.",
+  },
+  transactions: {
+    title: "Transactions",
+    subtitle: "View your complete transaction history.",
+  },
+  addMoney: {
+    title: "Add Money",
+    subtitle: "Recharge your wallet securely.",
+  },
+  profile: {
+    title: "Profile",
+    subtitle: "Manage your personal information.",
+  },
+};
+
 function StudentDashboardPage({ setPage }) {
   const [activeView, setActiveView] = useState("dashboard");
   const [student, setStudent] = useState(getStoredStudent);
+  const { title, subtitle } = studentPageCopy[activeView] || studentPageCopy.dashboard;
 
   const fetchLatestProfile = () => {
     const token = localStorage.getItem("cpacToken");
@@ -47,6 +74,7 @@ function StudentDashboardPage({ setPage }) {
             name: safeUser.name || "",
             email: safeUser.email || "",
             phone: safeUser.phone || "",
+            profilePicture: safeUser.profilePicture || "",
             accountType: safeUser.accountType || "student",
             walletBalance: safeUser.walletBalance || 0,
           });
@@ -136,21 +164,11 @@ function StudentDashboardPage({ setPage }) {
   const showAddMoney = () => setActiveView("addMoney");
   const showProfile = () => setActiveView("profile");
 
-  const pageCopy = {
-    dashboard: ["Student Dashboard", "Student wallet and payment interface"],
-    scan: ["Scan to Pay", "QR code scanner for quick payments"],
-    transactions: ["Transaction History", "View all past transactions"],
-    addMoney: ["Add Money Request", "Request wallet balance top-up"],
-    profile: ["Student Profile", "Manage your personal information"],
-  };
-
-  const [pageTitle, pageSubtitle] = pageCopy[activeView] || pageCopy.dashboard;
-
   return (
     <div className="student-dashboard-page">
       <header className="student-topbar">
-        <h1>{pageTitle}</h1>
-        <p>{pageSubtitle}</p>
+        <h1>{title}</h1>
+        <p>{subtitle}</p>
       </header>
 
       <div className="student-shell">
@@ -299,7 +317,12 @@ function StudentDashboardPage({ setPage }) {
             </>
           )}
 
-          {activeView === "scan" && <StudentScanPayPage student={student} refreshProfile={fetchLatestProfile} />}
+          {activeView === "scan" && (
+            <StudentScanPayPage
+              student={student}
+              refreshProfile={fetchLatestProfile}
+            />
+          )}
           {activeView === "transactions" && (
             <StudentTransactionsPage
               student={student}
