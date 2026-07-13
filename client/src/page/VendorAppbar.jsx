@@ -67,8 +67,30 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
     }
   };
 
-  const displayName = vendor.name || "Campus Cafe";
-  const displayEmail = vendor.email || "vendor@campus.edu";
+  const getVendorInfo = () => {
+    if (vendor && (vendor.name || vendor.email)) {
+      return vendor;
+    }
+
+    try {
+      const storedUser = JSON.parse(localStorage.getItem("cpacUser") || "{}");
+      return {
+        name: storedUser.name || "Campus Cafe",
+        email: storedUser.email || "vendor@campus.edu",
+        profilePicture: storedUser.profilePicture || "",
+      };
+    } catch {
+      return {
+        name: "Campus Cafe",
+        email: "vendor@campus.edu",
+        profilePicture: "",
+      };
+    }
+  };
+
+  const vendorInfo = getVendorInfo();
+  const displayName = vendorInfo.name || "Campus Cafe";
+  const displayEmail = vendorInfo.email || "vendor@campus.edu";
 
   return (
     <div className="vendor-appbar">
@@ -132,7 +154,11 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
               <span>{displayEmail}</span>
             </div>
             <span className="vendor-avatar">
-              <Icon type="user" />
+              {vendorInfo.profilePicture ? (
+                <img src={vendorInfo.profilePicture} alt={`${displayName} avatar`} />
+              ) : (
+                <Icon type="user" />
+              )}
             </span>
           </div>
 
@@ -140,7 +166,11 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
             <div className="profile-dropdown">
               <div className="profile-dropdown-info">
                 <span className="profile-dropdown-avatar">
-                  {displayName.charAt(0).toUpperCase()}
+                  {vendorInfo.profilePicture ? (
+                    <img src={vendorInfo.profilePicture} alt={`${displayName} avatar`} />
+                  ) : (
+                    displayName.charAt(0).toUpperCase()
+                  )}
                 </span>
                 <strong>{displayName}</strong>
                 <span className="email">{displayEmail}</span>

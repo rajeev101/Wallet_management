@@ -1,9 +1,10 @@
 import { useEffect, useState, useRef } from "react";
 import { Icon } from "./StudentIcon";
+import StudentHeader from "./StudentHeader";
 import { getApprovedVendors, getVendorById, makePayment } from "../api/auth";
 import { Html5Qrcode } from "html5-qrcode";
 
-function StudentScanPayPage({ student, refreshProfile }) {
+function StudentScanPayPage({ student, refreshProfile, onLogout }) {
   const [qrScanned, setQrScanned] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [vendors, setVendors] = useState([]);
@@ -272,8 +273,15 @@ function StudentScanPayPage({ student, refreshProfile }) {
   };
 
   return (
-    <section className="scan-pay-view" aria-label="Scan to pay">
-      {!qrScanned ? (
+    <>
+      <StudentHeader
+        title="Scan to Pay"
+        dateText="QR code scanner for quick payments"
+        student={student}
+        onLogout={onLogout}
+      />
+      <section className="scan-pay-view" aria-label="Scan to pay">
+        {!qrScanned ? (
         <div className="scanner-card">
           <div className="scanner-window" style={{ background: "#f8fafc", padding: "20px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "360px", position: "relative", width: "100%" }}>
             {/* Continuously mounted so html5-qrcode can target it on startCamera */}
@@ -425,7 +433,7 @@ function StudentScanPayPage({ student, refreshProfile }) {
             </p>
           )}
         </div>
-      ) : (
+        ) : (
         <div className="payment-card" style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
           {isPaymentSuccess ? (
             <div className="success-container">
@@ -540,8 +548,9 @@ function StudentScanPayPage({ student, refreshProfile }) {
             </>
           )}
         </div>
-      )}
-    </section>
+        )}
+      </section>
+    </>
   );
 }
 
