@@ -2100,6 +2100,7 @@
 .vendor-management-table .admin-table-wrap th:nth-child(7),
 .vendor-management-table .admin-table-wrap td:nth-child(7) {
   width: 10%;
+  text-align: center;
 }
 
 .vendor-management-table .admin-table-wrap th:nth-child(8),
@@ -2120,19 +2121,18 @@
   min-width: 80px;
   min-height: 28px;
   border-radius: 999px;
-  color: #111827;
   font-size: 0.82rem;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .vendor-status.active {
-  color: #111827;
-  background: transparent;
+  color: #16a34a;
+  background: #ecfdf5;
 }
 
 .vendor-status.inactive {
-  color: #71809a;
-  background: #f3f6fb;
+  color: #dc2626;
+  background: #fef2f2;
 }
 
 .vendor-status.pending {
