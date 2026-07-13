@@ -104,8 +104,11 @@ function StudentDashboardPage({ setPage }) {
 
   const formattedTransactions = rawTransactions.slice(0, 5).map((t) => {
     const isTopup = t.type === "wallet_topup";
+
     const isRefund = t.type === "refund";
+
     const isPayment = t.type === "payment";
+    
     const currentUserId = student.id || student._id;
 
     let amountStr = "";
