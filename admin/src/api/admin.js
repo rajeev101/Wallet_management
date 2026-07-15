@@ -43,8 +43,7 @@ export const rejectVendor = (id) =>
 export const addMoneyToStudent = (payload) =>
   request("/admin/add-money", payload, { method: "POST" });
 
-export const getAdminTransactions = (vendorId = "") =>
-  request(`/admin/transactions${vendorId ? `?vendorId=${encodeURIComponent(vendorId)}` : ""}`);
+export const getAdminTransactions = () => request("/admin/transactions");
 
 export const getAdminWalletRequests = () => request("/admin/wallet/requests");
 

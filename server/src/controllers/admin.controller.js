@@ -241,23 +241,7 @@ exports.addMoney = async (req, res) => {
 
 exports.getTransactions = async (req, res) => {
   try {
-    const { vendorId } = req.query;
-    let queryObj = {};
-
-    if (vendorId) {
-      const wallet = await Wallet.findOne({ owner: vendorId });
-      if (!wallet) {
-        return res.status(200).json({
-          success: true,
-          transactions: [],
-        });
-      }
-      queryObj = {
-        $or: [{ fromWallet: wallet._id }, { toWallet: wallet._id }],
-      };
-    }
-
-    let dbQuery = Transaction.find(queryObj)
+    const transactions = await Transaction.find()
       .populate({
         path: "fromWallet",
         populate: { path: "owner", select: "name email" },
@@ -267,13 +251,8 @@ exports.getTransactions = async (req, res) => {
         populate: { path: "owner", select: "name email" },
       })
       .populate("createdBy", "name email accountType")
-      .sort({ createdAt: -1 });
-
-    if (!vendorId) {
-      dbQuery = dbQuery.limit(200);
-    }
-
-    const transactions = await dbQuery;
+      .sort({ createdAt: -1 })
+      .limit(200);
 
     const formattedTransactions = transactions.map((t) => {
       const tObj = t.toObject();
