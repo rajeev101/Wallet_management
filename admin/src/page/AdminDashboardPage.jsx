@@ -102,15 +102,15 @@ const buildProfileForm = (user = {}) => ({
     user.joinDate ||
     (user.createdAt
       ? new Date(user.createdAt).toLocaleDateString("en-US", {
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        })
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
       : new Date().toLocaleDateString("en-US", {
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        })),
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })),
 });
 
 const getNameInitials = (name = "Admin User") => {
@@ -455,21 +455,21 @@ function AdminDashboardPage({ setPage }) {
 
   const recentRows = transactions.length
     ? transactions.slice(0, 4).map((transaction, index) => {
-        const statusText = transaction.status || "Completed";
-        return [
-          `TXN${String(index + 1).padStart(3, "0")}`,
-          transaction.student?.name || "-",
-          transaction.vendor?.name || "Wallet Top-up",
-          formatMoney(transaction.amount),
-          <span className={`transaction-status ${String(statusText).toLowerCase()}`}>
-            {statusText}
-          </span>,
-          new Date(transaction.createdAt).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        ];
-      })
+      const statusText = transaction.status || "Completed";
+      return [
+        `TXN${String(index + 1).padStart(3, "0")}`,
+        transaction.student?.name || "-",
+        transaction.vendor?.name || "Wallet Top-up",
+        formatMoney(transaction.amount),
+        <span className={`transaction-status ${String(statusText).toLowerCase()}`}>
+          {statusText}
+        </span>,
+        new Date(transaction.createdAt).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      ];
+    })
     : fallbackTransactions;
   const visibleStudents = students.length ? students : fallbackStudents;
   const filteredStudents = visibleStudents.filter((student, index) => {
@@ -530,6 +530,20 @@ function AdminDashboardPage({ setPage }) {
 
       return isVendorMatch ? total + Number(transaction.amount || 0) : total;
     }, 0);
+  };
+
+  const getVendorTransactionsCount = (vendor) => {
+    const count = transactions.filter((transaction) => {
+      const transactionVendorId = transaction.vendor?._id || transaction.vendor;
+      const transactionVendorName = transaction.vendor?.name;
+      const isVendorMatch = transactionVendorId === vendor._id || transactionVendorName === vendor.name;
+      return isVendorMatch && transaction.type === "payment";
+    }).length;
+
+    if (count === 0 && vendor.totalSales) {
+      return Math.round(vendor.totalSales / 100) || 5;
+    }
+    return count;
   };
   const getVendorStatusLabel = (status) => {
     if (status === "approved") {
@@ -628,7 +642,7 @@ function AdminDashboardPage({ setPage }) {
                       ? "Dashboard"
                       : activeView === "profile" && isEditingProfile
                         ? "Edit Profile"
-                      : pageTitle(activeView)}
+                        : pageTitle(activeView)}
             </h1>
             <p>{activeView === "students" ? "Manage students and wallet balances" : today}</p>
           </div>
@@ -1215,6 +1229,7 @@ function AdminDashboardPage({ setPage }) {
           onBack={() => setSelectedDashboardItem(null)}
           onClose={closeDashboardModal}
           getVendorSales={getVendorSales}
+          getVendorTransactionsCount={getVendorTransactionsCount}
         />
       )}
     </div>
@@ -1231,6 +1246,7 @@ function DashboardDetailsModal({
   onBack,
   onClose,
   getVendorSales,
+  getVendorTransactionsCount,
 }) {
   const title = {
     students: "All Students",
@@ -1279,6 +1295,7 @@ function DashboardDetailsModal({
               person={selectedItem}
               isVendor={type === "vendors"}
               totalSales={type === "vendors" ? getVendorSales(selectedItem) : null}
+              totalTransactions={type === "vendors" ? getVendorTransactionsCount(selectedItem) : null}
             />
           ) : type === "transactions" ? (
             <TransactionDetailsList transactions={transactions} />
@@ -1319,7 +1336,9 @@ function DashboardDetailsModal({
   );
 }
 
-function PersonDetails({ person, isVendor, totalSales }) {
+function PersonDetails({ person, isVendor, totalSales, totalTransactions }) {
+  const [showTxPanel, setShowTxPanel] = useState(false);
+
   const fields = [
     ["Name", person.name || "-"],
     ["Email", person.email || "-"],
@@ -1349,7 +1368,306 @@ function PersonDetails({ person, isVendor, totalSales }) {
             </dd>
           </div>
         ))}
+        {isVendor && (
+          <div className="pd-transactions-row">
+            <dt>Transactions</dt>
+            <dd style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px' }}>
+              <span style={{ fontWeight: '600' }}>{totalTransactions}</span>
+              <button
+                type="button"
+                className="pd-show-more-btn"
+                style={{ float: 'none', margin: 0 }}
+                onClick={() => setShowTxPanel(true)}
+              >
+                Show More
+              </button>
+            </dd>
+          </div>
+        )}
       </dl>
+      {showTxPanel && (
+        <VendorTransactionPanel
+          person={person}
+          onClose={() => setShowTxPanel(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function VendorTransactionPanel({ person, onClose }) {
+  const [txList, setTxList] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState("");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("date-newest");
+
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 900);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 900);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (!person._id) {
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+    setFetchError("");
+    getAdminTransactions(person._id)
+      .then((data) => {
+        const vendorReceived = (data.transactions || []).filter((t) => {
+          const type = String(t.type || "").toLowerCase();
+          const isPayment = type === "payment";
+          const transactionVendorId = t.vendor?._id || t.vendor;
+          const isVendorMatch = transactionVendorId === person._id || t.vendor?.name === person.name;
+          return isPayment && isVendorMatch;
+        });
+        setTxList(vendorReceived);
+      })
+      .catch((err) => setFetchError(err.message || "Failed to load transactions."))
+      .finally(() => setIsLoading(false));
+  }, [person._id, person.name]);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const filtered = txList
+    .filter((t) => {
+      const q = search.trim().toLowerCase();
+      if (q) {
+        const id = String(t._id || "").toLowerCase();
+        const studentName = String(t.student?.name || "").toLowerCase();
+        if (!id.includes(q) && !studentName.includes(q)) {
+          return false;
+        }
+      }
+      if (statusFilter !== "all" && (t.status || "completed").toLowerCase() !== statusFilter) {
+        return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === "date-newest") {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      if (sortBy === "date-oldest") {
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      if (sortBy === "amount-highest") {
+        return Number(b.amount || 0) - Number(a.amount || 0);
+      }
+      if (sortBy === "amount-lowest") {
+        return Number(a.amount || 0) - Number(b.amount || 0);
+      }
+      return 0;
+    });
+
+  const now = new Date();
+  const completedTxList = txList.filter(t => (t.status || "completed").toLowerCase() === "completed");
+  const totalAmountReceived = completedTxList.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+  const todayRevenue = completedTxList
+    .filter(t => {
+      const d = new Date(t.createdAt);
+      return d.getDate() === now.getDate() &&
+             d.getMonth() === now.getMonth() &&
+             d.getFullYear() === now.getFullYear();
+    })
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+  const thisMonthRevenue = completedTxList
+    .filter(t => {
+      const d = new Date(t.createdAt);
+      return d.getMonth() === now.getMonth() &&
+             d.getFullYear() === now.getFullYear();
+    })
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+  const amounts = completedTxList.map(t => Number(t.amount || 0));
+  const highestTransaction = amounts.length ? Math.max(...amounts) : 0;
+  const lowestTransaction = amounts.length ? Math.min(...amounts) : 0;
+
+  const latestTx = txList.reduce((latest, t) => {
+    if (!latest) return t;
+    return new Date(t.createdAt) > new Date(latest.createdAt) ? t : latest;
+  }, null);
+
+  const latestTransactionDate = latestTx && latestTx.createdAt
+    ? new Date(latestTx.createdAt).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "-";
+
+  const overlayStyle = isMobile ? {
+    position: "fixed",
+    inset: 0,
+    zIndex: 500,
+    background: "#f4f6fa",
+    overflowY: "auto",
+  } : {
+    position: "fixed",
+    left: "260px",
+    top: "80px",
+    right: 0,
+    bottom: 0,
+    zIndex: 500,
+    background: "#f4f6fa",
+    overflowY: "auto",
+  };
+
+  return (
+    <div className="stp-overlay" style={overlayStyle} role="dialog" aria-modal="true" aria-label="Vendor Transaction History">
+      <div className="stp-inner">
+        <header className="stp-header">
+          <div>
+            <button type="button" className="dashboard-modal-back stp-back" onClick={onClose}>
+              ← Back
+            </button>
+            <h2>Vendor Transaction History</h2>
+            <p>{person.name} · {txList.length} transaction{txList.length === 1 ? "" : "s"}</p>
+          </div>
+        </header>
+
+        {isLoading ? (
+          <div className="stp-loading">Loading transactions…</div>
+        ) : fetchError ? (
+          <div className="stp-error">{fetchError}</div>
+        ) : (
+          <>
+            <div className="stp-summary" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+              {[
+                ["Total Transactions", txList.length],
+                ["Total Amount Received", formatMoney(totalAmountReceived)],
+                ["Today's Revenue", formatMoney(todayRevenue)],
+                ["This Month's Revenue", formatMoney(thisMonthRevenue)],
+                ["Highest Transaction", formatMoney(highestTransaction)],
+                ["Lowest Transaction", formatMoney(lowestTransaction)],
+                ["Latest Transaction Date", latestTransactionDate],
+              ].map(([label, value]) => (
+                <div key={label} className="stp-summary-card">
+                  <span>{label}</span>
+                  <strong>{value}</strong>
+                </div>
+              ))}
+            </div>
+
+            <div className="stp-controls">
+              <div className="stp-search-wrap">
+                <svg viewBox="0 0 24 24" aria-hidden="true" className="stp-search-icon">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m20 20-3.5-3.5" />
+                </svg>
+                <input
+                  type="search"
+                  className="stp-search"
+                  placeholder="Search by Transaction ID, student name…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              <select className="stp-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                <option value="all">All Statuses</option>
+                <option value="completed">Completed</option>
+                <option value="pending">Pending</option>
+                <option value="failed">Failed</option>
+              </select>
+              <select className="stp-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                <option value="date-newest">Date: Newest First</option>
+                <option value="date-oldest">Date: Oldest First</option>
+                <option value="amount-highest">Amount: Highest First</option>
+                <option value="amount-lowest">Amount: Lowest First</option>
+              </select>
+            </div>
+
+            {filtered.length === 0 ? (
+              <p className="dashboard-modal-empty">No transactions match your filters.</p>
+            ) : (
+              <div className="stp-table-wrap">
+                <table className="stp-table">
+                  <thead>
+                    <tr>
+                      <th>Transaction ID</th>
+                      <th>Student Info</th>
+                      <th>Vendor Info</th>
+                      <th>Amount Received</th>
+                      <th>Type</th>
+                      <th>Status</th>
+                      <th>Method</th>
+                      <th>Date & Time</th>
+                      <th>Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((t, idx) => {
+                      const createdAt = t.createdAt ? new Date(t.createdAt) : null;
+                      const dateStr = createdAt ? createdAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "-";
+                      const timeStr = createdAt ? createdAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "-";
+                      
+                      const studentId = t.student?._id
+                        ? (t.student._id.startsWith("STU") ? t.student._id : `STU${t.student._id.slice(-5).toUpperCase()}`)
+                        : "-";
+                      
+                      const vendorId = t.vendor?._id
+                        ? (t.vendor._id.startsWith("V") ? t.vendor._id : `V${t.vendor._id.slice(-5).toUpperCase()}`)
+                        : "-";
+
+                      return (
+                        <tr key={t._id || idx}>
+                          <td className="stp-id">{t._id || "-"}</td>
+                          <td>
+                            <div style={{ fontWeight: "600" }}>{t.student?.name || "-"}</div>
+                            {t.student?.email && <div style={{ fontSize: "0.75rem", color: "#6b7280" }}>{t.student.email}</div>}
+                            <div style={{ fontSize: "0.75rem", color: "#9ca3af" }}>ID: {studentId}</div>
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: "600" }}>{t.vendor?.name || "-"}</div>
+                            <div style={{ fontSize: "0.75rem", color: "#9ca3af" }}>ID: {vendorId}</div>
+                          </td>
+                          <td className="stp-amount debit">
+                            {formatMoney(t.amount)}
+                          </td>
+                          <td>
+                            <span className="stp-type payment">
+                              {t.type ? t.type.replace("_", " ") : "payment"}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`transaction-status ${String(t.status || "completed").toLowerCase()}`}>
+                              {t.status || "completed"}
+                            </span>
+                          </td>
+                          <td>
+                            {t.paymentMethod || "Wallet"}
+                          </td>
+                          <td>
+                            <div>{dateStr}</div>
+                            <div style={{ fontSize: "0.75rem", color: "#6b7280" }}>{timeStr}</div>
+                          </td>
+                          <td className="stp-desc" title={t.description || ""}>
+                            {t.description || "-"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -1379,9 +1697,9 @@ function TransactionDetailsList({ transactions }) {
               <time dateTime={transaction.createdAt}>
                 {createdAt
                   ? createdAt.toLocaleString([], {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    })
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })
                   : "-"}
               </time>
             </div>
