@@ -1539,17 +1539,8 @@
 }
 
 .admin-profile-edit-photo {
-  display: grid;
   justify-items: center;
-  gap: 8px;
   margin: 2px 0 18px;
-}
-
-.admin-profile-photo-upload {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  margin: 0;
   cursor: pointer;
 }
 
@@ -1570,40 +1561,6 @@
   border: 0;
   opacity: 0;
   pointer-events: none;
-}
-
-.admin-profile-photo-edit-badge {
-  position: absolute;
-  right: 4px;
-  bottom: 4px;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border: 2px solid #ffffff;
-  border-radius: 50%;
-  background: #2444c2;
-  color: #ffffff;
-  box-shadow: 0 8px 16px rgba(36, 68, 194, 0.2);
-}
-
-.admin-profile-photo-edit-badge svg {
-  width: 14px;
-  height: 14px;
-  stroke-width: 2.4;
-}
-
-.admin-profile-photo-remove {
-  min-height: 32px;
-  border: 0;
-  border-radius: 8px;
-  padding: 0 12px;
-  background: #f8fafc;
-  color: #ef4444;
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
 }
 
 .admin-profile-form label {
@@ -2094,7 +2051,6 @@
 .vendor-management-table .admin-table-wrap th:nth-child(6),
 .vendor-management-table .admin-table-wrap td:nth-child(6) {
   width: 10%;
-  text-align: center;
 }
 
 .vendor-management-table .admin-table-wrap th:nth-child(7),
@@ -2126,6 +2082,9 @@
 }
 
 .vendor-status.active {
+  justify-content: flex-start;
+  min-width: auto;
+  min-height: auto;
   color: #111827;
   background: transparent;
 }
@@ -2166,11 +2125,11 @@
   cursor: pointer;
 }
 
-.vendor-row-actions button:nth-child(1) {
+.vendor-row-actions button:nth-child(2) {
   color: #71809a;
 }
 
-.vendor-row-actions button:nth-child(2) {
+.vendor-row-actions button:nth-child(3) {
   color: #ef4444;
 }
 
