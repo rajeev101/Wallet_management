@@ -10,6 +10,19 @@ const { sendOTPEmail, sendPasswordResetSuccessEmail } = require("../utils/email"
 const crypto = require("crypto");
 const transporter = require("../services/email.service");
 
+const notifyAdmins = async ({ type, text }) => {
+  const admins = await User.find({ accountType: "admin" }).select("_id");
+  if (!admins.length) return;
+
+  await Notification.insertMany(
+    admins.map((admin) => ({
+      recipient: admin._id,
+      type,
+      text,
+    }))
+  );
+};
+
 // SIGNUP
 exports.signup = async (req, res) => {
   try {
@@ -70,6 +83,11 @@ exports.signup = async (req, res) => {
     const safeUser = user.toObject();
     delete safeUser.password;
     safeUser.walletBalance = wallet.balance;
+
+    await notifyAdmins({
+      type: "wallet_request",
+      text: `New ${requestedAccountType} account: ${safeUser.name} (${safeUser.email}) registered.`,
+    });
 
     res.status(201).json({
       success: true,
@@ -701,11 +719,17 @@ exports.makePayment = async (req, res) => {
       description: `Payment to ${vendor.name}`,
     });
 
-    await Notification.create({
-      recipient: vendor._id,
-      type: "payment",
-      text: `Payment Received: ₹${parsedAmount.toFixed(2)} from ${student.name}.`,
-    });
+    await Promise.all([
+      Notification.create({
+        recipient: vendor._id,
+        type: "payment",
+        text: `Payment Received: ₹${parsedAmount.toFixed(2)} from ${student.name}.`,
+      }),
+      notifyAdmins({
+        type: "payment",
+        text: `Payment alert: ${student.name} paid ₹${parsedAmount.toFixed(2)} to ${vendor.name}.`,
+      }),
+    ]);
 
     res.status(200).json({
       success: true,
