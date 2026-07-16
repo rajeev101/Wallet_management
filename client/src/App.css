@@ -608,6 +608,7 @@
 }
 
 .student-content {
+  position: relative;
   min-width: 0;
   padding: 28px 32px 40px;
   background: #f5f7fa;
@@ -2489,6 +2490,7 @@
 }
 
 .vendor-content {
+  position: relative;
   min-width: 0;
   padding: 28px 32px 40px;
   background: #f5f7fa;
