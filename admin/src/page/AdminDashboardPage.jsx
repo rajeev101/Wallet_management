@@ -144,12 +144,30 @@ function AdminDashboardPage({ setPage }) {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [dashboardModal, setDashboardModal] = useState(null);
   const [selectedDashboardItem, setSelectedDashboardItem] = useState(null);
+  const [selectedStudent, setSelectedStudent] = useState(null);
 
   const notifRef = useRef(null);
   const profileRef = useRef(null);
   const activeViewRef = useRef(activeView);
 
   const [admin, setAdmin] = useState(getStoredAdmin);
+
+  const navigateToAdminView = useCallback((view, pushHistory = true) => {
+    setActiveView(view);
+    if (view !== "student-details") {
+      setSelectedStudent(null);
+    }
+
+    if (typeof window === "undefined" || !pushHistory) {
+      return;
+    }
+
+    const nextUrl = view === "dashboard"
+      ? window.location.pathname
+      : `${window.location.pathname}?view=${encodeURIComponent(view)}`;
+
+    window.history.pushState({ view }, "", nextUrl);
+  }, []);
 
   const [profileForm, setProfileForm] = useState(() => buildProfileForm(getStoredAdmin()));
 
@@ -315,6 +333,16 @@ function AdminDashboardPage({ setPage }) {
       document.body.style.overflow = previousOverflow;
     };
   }, [dashboardModal]);
+
+  useEffect(() => {
+    const handlePopState = (event) => {
+      const nextView = event.state?.view || new URLSearchParams(window.location.search).get("view") || "dashboard";
+      setActiveView(nextView);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   const handleSearch = (event) => {
     event.preventDefault();
@@ -578,6 +606,13 @@ function AdminDashboardPage({ setPage }) {
     setDashboardModal(type);
   };
 
+  const openStudentDetails = (student) => {
+    setSelectedStudent(student);
+    navigateToAdminView("student-details");
+  };
+
+  const isStudentsContentView = activeView === "students" || activeView === "all-students";
+
   const closeDashboardModal = () => {
     setDashboardModal(null);
     setSelectedDashboardItem(null);
@@ -612,7 +647,7 @@ function AdminDashboardPage({ setPage }) {
               className={activeView === view ? "active" : ""}
               key={view}
               type="button"
-              onClick={() => setActiveView(view)}
+              onClick={() => navigateToAdminView(view)}
             >
               <AdminIcon type={icon} />
               {label}
@@ -632,19 +667,23 @@ function AdminDashboardPage({ setPage }) {
         <header className="admin-navbar">
           <div>
             <h1>
-              {activeView === "students"
-                ? "Student Management"
-                : activeView === "vendors"
-                  ? "Vendor Management"
-                  : activeView === "wallet"
-                    ? "Wallet Management"
-                    : activeView === "dashboard"
-                      ? "Dashboard"
-                      : activeView === "profile" && isEditingProfile
-                        ? "Edit Profile"
-                        : pageTitle(activeView)}
+              {activeView === "student-details"
+                ? "Student Details"
+                : activeView === "all-students"
+                  ? "All Students"
+                  : activeView === "students"
+                    ? "Student Management"
+                    : activeView === "vendors"
+                      ? "Vendor Management"
+                      : activeView === "wallet"
+                        ? "Wallet Management"
+                        : activeView === "dashboard"
+                          ? "Dashboard"
+                          : activeView === "profile" && isEditingProfile
+                            ? "Edit Profile"
+                            : pageTitle(activeView)}
             </h1>
-            <p>{activeView === "students" ? "Manage students and wallet balances" : today}</p>
+            <p>{isStudentsContentView || activeView === "student-details" ? "Manage students and wallet balances" : today}</p>
           </div>
 
           <div className="admin-navbar-actions">
@@ -753,10 +792,24 @@ function AdminDashboardPage({ setPage }) {
                       role="button"
                       tabIndex={0}
                       aria-haspopup="dialog"
-                      onClick={() => openDashboardModal(card.type)}
+                      onClick={() => {
+                        if (card.type === "students") {
+                          setDashboardModal(null);
+                          setSelectedDashboardItem(null);
+                          navigateToAdminView("all-students");
+                          return;
+                        }
+                        openDashboardModal(card.type);
+                      }}
                       onKeyDown={(event) => {
                         if (event.key === "Enter" || event.key === " ") {
                           event.preventDefault();
+                          if (card.type === "students") {
+                            setDashboardModal(null);
+                            setSelectedDashboardItem(null);
+                            navigateToAdminView("all-students");
+                            return;
+                          }
                           openDashboardModal(card.type);
                         }
                       }}
@@ -776,7 +829,7 @@ function AdminDashboardPage({ setPage }) {
                 <section className="admin-recent-section">
                   <div className="admin-section-title">
                     <h2>Recent Transactions</h2>
-                    <button type="button" onClick={() => setActiveView("transactions")}>View All</button>
+                    <button type="button" onClick={() => navigateToAdminView("transactions")}>View All</button>
                   </div>
                   <AdminTable
                     columns={["Transaction ID", "Student", "Vendor", "Amount", "Status", "Time"]}
@@ -787,7 +840,7 @@ function AdminDashboardPage({ setPage }) {
               </>
             )}
 
-            {activeView === "students" && (
+            {isStudentsContentView && (
               <>
                 <section className="student-management-stats" aria-label="Student statistics">
                   {studentStats.map(([label, value, tone]) => (
@@ -838,7 +891,18 @@ function AdminDashboardPage({ setPage }) {
                             : `STU${String(index + 12345)}`;
 
                           return (
-                            <tr key={student._id || student.email}>
+                            <tr
+                              key={student._id || student.email}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => openStudentDetails(student)}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.preventDefault();
+                                  openStudentDetails(student);
+                                }
+                              }}
+                            >
                               <td>{studentId}</td>
                               <td>
                                 <div className="student-name-cell">
@@ -860,7 +924,10 @@ function AdminDashboardPage({ setPage }) {
                                 <button
                                   className="student-money-button"
                                   type="button"
-                                  onClick={() => setActiveView("wallet")}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    navigateToAdminView("wallet");
+                                  }}
                                 >
                                   <span>₹</span>
                                   Add Money
@@ -1121,6 +1188,24 @@ function AdminDashboardPage({ setPage }) {
               </section>
             )}
 
+            {activeView === "student-details" && selectedStudent && (
+              <section className="admin-panel">
+                <div className="admin-panel-heading">
+                  <h2>Student Details</h2>
+                  <button type="button" onClick={() => navigateToAdminView("all-students")}>
+                    ← Back to Students
+                  </button>
+                </div>
+                <PersonDetails
+                  person={selectedStudent}
+                  isVendor={false}
+                  totalSales={null}
+                  totalTransactions={null}
+                  allTransactions={transactions}
+                />
+              </section>
+            )}
+
             {activeView === "wallet" && (
               <>
                 <section className="wallet-management-stats" aria-label="Wallet request statistics">
@@ -1336,8 +1421,18 @@ function DashboardDetailsModal({
   );
 }
 
-function PersonDetails({ person, isVendor, totalSales, totalTransactions }) {
+function PersonDetails({ person, isVendor, totalSales, totalTransactions, allTransactions = [] }) {
   const [showTxPanel, setShowTxPanel] = useState(false);
+
+  const studentTransactionCount = !isVendor
+    ? (allTransactions || []).filter((transaction) => {
+      const transactionStudentId = String(transaction.student?._id || transaction.student || "").toLowerCase();
+      const personId = String(person._id || "").toLowerCase();
+      const transactionStudentName = String(transaction.student?.name || "").toLowerCase();
+      const personName = String(person.name || "").toLowerCase();
+      return transactionStudentId === personId || transactionStudentName === personName;
+    }).length
+    : Number(totalTransactions || 0);
 
   const fields = [
     ["Name", person.name || "-"],
@@ -1368,42 +1463,55 @@ function PersonDetails({ person, isVendor, totalSales, totalTransactions }) {
             </dd>
           </div>
         ))}
-        {isVendor && (
-          <div className="pd-transactions-row">
-            <dt>Transactions</dt>
-            <dd style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px' }}>
-              <span style={{ fontWeight: '600' }}>{totalTransactions}</span>
-              <button
-                type="button"
-                className="pd-show-more-btn"
-                style={{ float: 'none', margin: 0 }}
-                onClick={() => setShowTxPanel(true)}
-              >
-                Show More
-              </button>
-            </dd>
-          </div>
-        )}
+        <div className="transaction-detail-row">
+          <dt>Transactions</dt>
+          <dd>
+            <span className="transaction-detail-value">{isVendor ? totalTransactions : studentTransactionCount}</span>
+            <button
+              type="button"
+              className="transaction-show-more-btn"
+              onClick={() => setShowTxPanel(true)}
+            >
+              Show More
+            </button>
+          </dd>
+        </div>
       </dl>
       {showTxPanel && (
-        <VendorTransactionPanel
+        <PersonTransactionPanel
           person={person}
           onClose={() => setShowTxPanel(false)}
+          isVendor={isVendor}
         />
       )}
     </div>
   );
 }
 
-function VendorTransactionPanel({ person, onClose }) {
+function PersonTransactionPanel({ person, onClose, isVendor = false }) {
   const [txList, setTxList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [sortBy, setSortBy] = useState("date-newest");
+  const [page, setPage] = useState(1);
+  const closeButtonRef = useRef(null);
+  const previousFocusRef = useRef(null);
 
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 900);
+
+  useEffect(() => {
+    previousFocusRef.current = document.activeElement;
+    closeButtonRef.current?.focus();
+
+    return () => {
+      if (previousFocusRef.current instanceof HTMLElement) {
+        previousFocusRef.current.focus();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 900);
@@ -1420,18 +1528,26 @@ function VendorTransactionPanel({ person, onClose }) {
     setFetchError("");
     getAdminTransactions(person._id)
       .then((data) => {
-        const vendorReceived = (data.transactions || []).filter((t) => {
-          const type = String(t.type || "").toLowerCase();
-          const isPayment = type === "payment";
-          const transactionVendorId = t.vendor?._id || t.vendor;
-          const isVendorMatch = transactionVendorId === person._id || t.vendor?.name === person.name;
-          return isPayment && isVendorMatch;
+        const matchedTransactions = (data.transactions || []).filter((t) => {
+          if (isVendor) {
+            const transactionVendorId = String(t.vendor?._id || t.vendor || "").toLowerCase();
+            const personId = String(person._id || "").toLowerCase();
+            const transactionVendorName = String(t.vendor?.name || "").toLowerCase();
+            const personName = String(person.name || "").toLowerCase();
+            return transactionVendorId === personId || transactionVendorName === personName;
+          }
+
+          const transactionStudentId = String(t.student?._id || t.student || "").toLowerCase();
+          const personId = String(person._id || "").toLowerCase();
+          const transactionStudentName = String(t.student?.name || "").toLowerCase();
+          const personName = String(person.name || "").toLowerCase();
+          return transactionStudentId === personId || transactionStudentName === personName;
         });
-        setTxList(vendorReceived);
+        setTxList(matchedTransactions);
       })
-      .catch((err) => setFetchError(err.message || "Failed to load transactions."))
+      .catch((err) => setFetchError(err.message || "Unable to load transactions. Please try again."))
       .finally(() => setIsLoading(false));
-  }, [person._id, person.name]);
+  }, [person._id, person.name, isVendor]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -1441,18 +1557,34 @@ function VendorTransactionPanel({ person, onClose }) {
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, typeFilter, sortBy]);
+
   const filtered = txList
     .filter((t) => {
       const q = search.trim().toLowerCase();
       if (q) {
         const id = String(t._id || "").toLowerCase();
         const studentName = String(t.student?.name || "").toLowerCase();
-        if (!id.includes(q) && !studentName.includes(q)) {
+        const vendorName = String(t.vendor?.name || "").toLowerCase();
+        if (!id.includes(q) && !studentName.includes(q) && !vendorName.includes(q)) {
           return false;
         }
       }
       if (statusFilter !== "all" && (t.status || "completed").toLowerCase() !== statusFilter) {
         return false;
+      }
+      if (typeFilter !== "all") {
+        const normalizedType = String(t.type || "").toLowerCase();
+        const isCredit = normalizedType.includes("topup") || normalizedType.includes("wallet") || normalizedType.includes("credit") || normalizedType.includes("deposit") || normalizedType.includes("refund");
+        const isDebit = !isCredit;
+        if (typeFilter === "credit" && !isCredit) {
+          return false;
+        }
+        if (typeFilter === "debit" && !isDebit) {
+          return false;
+        }
       }
       return true;
     })
@@ -1472,32 +1604,21 @@ function VendorTransactionPanel({ person, onClose }) {
       return 0;
     });
 
+  const pageSize = 8;
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const visibleTransactions = filtered.slice((page - 1) * pageSize, page * pageSize);
+
   const now = new Date();
-  const completedTxList = txList.filter(t => (t.status || "completed").toLowerCase() === "completed");
-  const totalAmountReceived = completedTxList.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+  const normalizedTxList = txList.map((t) => {
+    const normalizedType = String(t.type || "").toLowerCase();
+    const isCredit = normalizedType.includes("topup") || normalizedType.includes("wallet") || normalizedType.includes("credit") || normalizedType.includes("deposit") || normalizedType.includes("refund");
+    return { ...t, isCredit };
+  });
+  const completedTxList = normalizedTxList.filter((t) => (t.status || "completed").toLowerCase() === "completed");
+  const totalCreditAmount = completedTxList.reduce((sum, t) => sum + (t.isCredit ? Number(t.amount || 0) : 0), 0);
+  const totalDebitAmount = completedTxList.reduce((sum, t) => sum + (!t.isCredit ? Number(t.amount || 0) : 0), 0);
 
-  const todayRevenue = completedTxList
-    .filter(t => {
-      const d = new Date(t.createdAt);
-      return d.getDate() === now.getDate() &&
-             d.getMonth() === now.getMonth() &&
-             d.getFullYear() === now.getFullYear();
-    })
-    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-
-  const thisMonthRevenue = completedTxList
-    .filter(t => {
-      const d = new Date(t.createdAt);
-      return d.getMonth() === now.getMonth() &&
-             d.getFullYear() === now.getFullYear();
-    })
-    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-
-  const amounts = completedTxList.map(t => Number(t.amount || 0));
-  const highestTransaction = amounts.length ? Math.max(...amounts) : 0;
-  const lowestTransaction = amounts.length ? Math.min(...amounts) : 0;
-
-  const latestTx = txList.reduce((latest, t) => {
+  const latestTx = normalizedTxList.reduce((latest, t) => {
     if (!latest) return t;
     return new Date(t.createdAt) > new Date(latest.createdAt) ? t : latest;
   }, null);
@@ -1528,142 +1649,129 @@ function VendorTransactionPanel({ person, onClose }) {
   };
 
   return (
-    <div className="stp-overlay" style={overlayStyle} role="dialog" aria-modal="true" aria-label="Vendor Transaction History">
-      <div className="stp-inner">
-        <header className="stp-header">
+    <div className="student-transaction-overlay" style={overlayStyle} role="dialog" aria-modal="true" aria-label={isVendor ? "Vendor Transaction History" : "Student Transaction History"}>
+      <div className="student-transaction-overlay-body">
+        <header className="student-transaction-overlay-header">
           <div>
-            <button type="button" className="dashboard-modal-back stp-back" onClick={onClose}>
-              ← Back
+            <button ref={closeButtonRef} type="button" className="student-transaction-close-btn" onClick={onClose}>
+              × Close
             </button>
-            <h2>Vendor Transaction History</h2>
+            <h2>Student Transaction History</h2>
             <p>{person.name} · {txList.length} transaction{txList.length === 1 ? "" : "s"}</p>
           </div>
         </header>
 
         {isLoading ? (
-          <div className="stp-loading">Loading transactions…</div>
+          <div className="student-transaction-loading">Loading transactions...</div>
         ) : fetchError ? (
-          <div className="stp-error">{fetchError}</div>
+          <div className="student-transaction-error">{fetchError}</div>
         ) : (
           <>
-            <div className="stp-summary" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+            <div className="student-transaction-summary">
               {[
                 ["Total Transactions", txList.length],
-                ["Total Amount Received", formatMoney(totalAmountReceived)],
-                ["Today's Revenue", formatMoney(todayRevenue)],
-                ["This Month's Revenue", formatMoney(thisMonthRevenue)],
-                ["Highest Transaction", formatMoney(highestTransaction)],
-                ["Lowest Transaction", formatMoney(lowestTransaction)],
+                ["Total Credit Amount", formatMoney(totalCreditAmount)],
+                ["Total Debit Amount", formatMoney(totalDebitAmount)],
+                ["Total Amount Spent", formatMoney(totalDebitAmount)],
+                ["Total Amount Added", formatMoney(totalCreditAmount)],
                 ["Latest Transaction Date", latestTransactionDate],
               ].map(([label, value]) => (
-                <div key={label} className="stp-summary-card">
+                <div key={label} className="student-transaction-summary-card">
                   <span>{label}</span>
                   <strong>{value}</strong>
                 </div>
               ))}
             </div>
 
-            <div className="stp-controls">
-              <div className="stp-search-wrap">
-                <svg viewBox="0 0 24 24" aria-hidden="true" className="stp-search-icon">
-                  <circle cx="11" cy="11" r="7" />
-                  <path d="m20 20-3.5-3.5" />
-                </svg>
+            <div className="student-transaction-toolbar">
+              <div className="student-transaction-search">
                 <input
                   type="search"
-                  className="stp-search"
-                  placeholder="Search by Transaction ID, student name…"
+                  placeholder="Search by Transaction ID"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
-              <select className="stp-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <select className="student-transaction-filter" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
                 <option value="all">All Statuses</option>
                 <option value="completed">Completed</option>
                 <option value="pending">Pending</option>
                 <option value="failed">Failed</option>
               </select>
-              <select className="stp-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-                <option value="date-newest">Date: Newest First</option>
-                <option value="date-oldest">Date: Oldest First</option>
-                <option value="amount-highest">Amount: Highest First</option>
-                <option value="amount-lowest">Amount: Lowest First</option>
+              <select className="student-transaction-filter" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+                <option value="all">All Types</option>
+                <option value="credit">Credit</option>
+                <option value="debit">Debit</option>
+              </select>
+              <select className="student-transaction-filter" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                <option value="date-newest">Newest First</option>
+                <option value="date-oldest">Oldest First</option>
+                <option value="amount-highest">Highest First</option>
+                <option value="amount-lowest">Lowest First</option>
               </select>
             </div>
 
             {filtered.length === 0 ? (
-              <p className="dashboard-modal-empty">No transactions match your filters.</p>
+              <p className="student-transaction-empty">No transactions found for this student.</p>
             ) : (
-              <div className="stp-table-wrap">
-                <table className="stp-table">
-                  <thead>
-                    <tr>
-                      <th>Transaction ID</th>
-                      <th>Student Info</th>
-                      <th>Vendor Info</th>
-                      <th>Amount Received</th>
-                      <th>Type</th>
-                      <th>Status</th>
-                      <th>Method</th>
-                      <th>Date & Time</th>
-                      <th>Remarks</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map((t, idx) => {
-                      const createdAt = t.createdAt ? new Date(t.createdAt) : null;
-                      const dateStr = createdAt ? createdAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "-";
-                      const timeStr = createdAt ? createdAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "-";
-                      
-                      const studentId = t.student?._id
-                        ? (t.student._id.startsWith("STU") ? t.student._id : `STU${t.student._id.slice(-5).toUpperCase()}`)
-                        : "-";
-                      
-                      const vendorId = t.vendor?._id
-                        ? (t.vendor._id.startsWith("V") ? t.vendor._id : `V${t.vendor._id.slice(-5).toUpperCase()}`)
-                        : "-";
+              <>
+                <div className="student-transaction-table-wrapper">
+                  <table className="student-transaction-table">
+                    <thead>
+                      <tr>
+                        <th>Transaction ID</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Amount</th>
+                        <th>Type</th>
+                        <th>Vendor Name</th>
+                        <th>Student Name</th>
+                        <th>Status</th>
+                        <th>Method</th>
+                        <th>Remarks</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleTransactions.map((t, idx) => {
+                        const createdAt = t.createdAt ? new Date(t.createdAt) : null;
+                        const dateStr = createdAt ? createdAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "-";
+                        const timeStr = createdAt ? createdAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "-";
+                        const transactionType = t.isCredit ? "Credit" : "Debit";
 
-                      return (
-                        <tr key={t._id || idx}>
-                          <td className="stp-id">{t._id || "-"}</td>
-                          <td>
-                            <div style={{ fontWeight: "600" }}>{t.student?.name || "-"}</div>
-                            {t.student?.email && <div style={{ fontSize: "0.75rem", color: "#6b7280" }}>{t.student.email}</div>}
-                            <div style={{ fontSize: "0.75rem", color: "#9ca3af" }}>ID: {studentId}</div>
-                          </td>
-                          <td>
-                            <div style={{ fontWeight: "600" }}>{t.vendor?.name || "-"}</div>
-                            <div style={{ fontSize: "0.75rem", color: "#9ca3af" }}>ID: {vendorId}</div>
-                          </td>
-                          <td className="stp-amount debit">
-                            {formatMoney(t.amount)}
-                          </td>
-                          <td>
-                            <span className="stp-type payment">
-                              {t.type ? t.type.replace("_", " ") : "payment"}
-                            </span>
-                          </td>
-                          <td>
-                            <span className={`transaction-status ${String(t.status || "completed").toLowerCase()}`}>
-                              {t.status || "completed"}
-                            </span>
-                          </td>
-                          <td>
-                            {t.paymentMethod || "Wallet"}
-                          </td>
-                          <td>
-                            <div>{dateStr}</div>
-                            <div style={{ fontSize: "0.75rem", color: "#6b7280" }}>{timeStr}</div>
-                          </td>
-                          <td className="stp-desc" title={t.description || ""}>
-                            {t.description || "-"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                        return (
+                          <tr key={t._id || idx}>
+                            <td>{t._id || "-"}</td>
+                            <td>{dateStr}</td>
+                            <td>{timeStr}</td>
+                            <td>{formatMoney(t.amount)}</td>
+                            <td>{transactionType}</td>
+                            <td>{t.vendor?.name || "-"}</td>
+                            <td>{t.student?.name || "-"}</td>
+                            <td>
+                              <span className={`transaction-status ${String(t.status || "completed").toLowerCase()}`}>
+                                {t.status || "completed"}
+                              </span>
+                            </td>
+                            <td>{t.paymentMethod || "Wallet"}</td>
+                            <td>{t.description || "-"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {pageCount > 1 && (
+                  <div className="student-transaction-pagination">
+                    <button type="button" disabled={page === 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>
+                      Previous
+                    </button>
+                    <span>Page {page} of {pageCount}</span>
+                    <button type="button" disabled={page === pageCount} onClick={() => setPage((current) => Math.min(pageCount, current + 1))}>
+                      Next
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
