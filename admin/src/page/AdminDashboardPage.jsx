@@ -92,6 +92,54 @@ const getStoredAdmin = () => {
   }
 };
 
+const getComparableIdentity = (value) => {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "object") {
+    return value._id || value.id || value.email || value.name || "";
+  }
+  return String(value);
+};
+
+const isSameUser = (left, right) => {
+  const leftIdentity = getComparableIdentity(left).toLowerCase();
+  const rightIdentity = getComparableIdentity(right).toLowerCase();
+
+  if (leftIdentity && rightIdentity && leftIdentity === rightIdentity) {
+    return true;
+  }
+
+  const leftEmail = String(left?.email || "").toLowerCase();
+  const rightEmail = String(right?.email || "").toLowerCase();
+  if (leftEmail && rightEmail && leftEmail === rightEmail) {
+    return true;
+  }
+
+  const leftName = String(left?.name || "").toLowerCase();
+  const rightName = String(right?.name || "").toLowerCase();
+  return Boolean(leftName && rightName && leftName === rightName);
+};
+
+const getStudentTransactionRecords = (transactions, student) => {
+  if (!student) return [];
+
+  return transactions.filter((transaction) => {
+    if (transaction.type === "payment") {
+      return isSameUser(transaction.student || transaction.fromWallet?.owner, student);
+    }
+
+    if (transaction.type === "wallet_topup" || transaction.type === "refund") {
+      return isSameUser(transaction.student || transaction.toWallet?.owner, student);
+    }
+
+    return isSameUser(transaction.student || transaction.fromWallet?.owner || transaction.toWallet?.owner, student);
+  });
+};
+
+const getTransactionPartyName = (party) => party?.name || "-";
+
+const getTransactionPaymentMethod = (transaction) => transaction.paymentMethod || transaction.method || transaction.paymentType || "-";
+
 const buildProfileForm = (user = {}) => ({
   name: user.name || "Admin User",
   email: user.email || "admin@campuswallet.com",
@@ -1202,21 +1250,21 @@ function AdminDashboardPage({ setPage }) {
             )}
           </>
         )}
-      </main>
 
-      {dashboardModal && (
-        <DashboardDetailsModal
-          type={dashboardModal}
-          students={students}
-          vendors={vendors}
-          transactions={transactions}
-          selectedItem={selectedDashboardItem}
-          onSelect={setSelectedDashboardItem}
-          onBack={() => setSelectedDashboardItem(null)}
-          onClose={closeDashboardModal}
-          getVendorSales={getVendorSales}
-        />
-      )}
+        {dashboardModal && (
+          <DashboardDetailsModal
+            type={dashboardModal}
+            students={students}
+            vendors={vendors}
+            transactions={transactions}
+            selectedItem={selectedDashboardItem}
+            onSelect={setSelectedDashboardItem}
+            onBack={() => setSelectedDashboardItem(null)}
+            onClose={closeDashboardModal}
+            getVendorSales={getVendorSales}
+          />
+        )}
+      </main>
     </div>
   );
 }
@@ -1232,6 +1280,8 @@ function DashboardDetailsModal({
   onClose,
   getVendorSales,
 }) {
+  const [studentTransactionTarget, setStudentTransactionTarget] = useState(null);
+
   const title = {
     students: "All Students",
     vendors: "All Vendors",
@@ -1239,9 +1289,15 @@ function DashboardDetailsModal({
     wallet: "Student Wallet Balances",
   }[type];
 
+  const studentTransactions = type === "vendors" ? [] : getStudentTransactionRecords(transactions, selectedItem);
+  const isStudentTransactionView = Boolean(studentTransactionTarget);
   const detailTitle = type === "vendors" ? "Vendor Details" : "Student Details";
   const isPeopleList = type === "students" || type === "vendors" || type === "wallet";
   const people = type === "vendors" ? vendors : students;
+
+  useEffect(() => {
+    setStudentTransactionTarget(null);
+  }, [selectedItem, type]);
 
   return (
     <div className="dashboard-modal-backdrop" role="presentation" onMouseDown={onClose}>
@@ -1274,11 +1330,15 @@ function DashboardDetailsModal({
         </header>
 
         <div className="dashboard-modal-body">
-          {selectedItem ? (
+          {isStudentTransactionView ? (
+            <StudentTransactionPanel student={studentTransactionTarget} transactions={studentTransactions} />
+          ) : selectedItem ? (
             <PersonDetails
               person={selectedItem}
               isVendor={type === "vendors"}
               totalSales={type === "vendors" ? getVendorSales(selectedItem) : null}
+              totalTransactions={studentTransactions.length}
+              onShowTransactions={() => setStudentTransactionTarget(selectedItem)}
             />
           ) : type === "transactions" ? (
             <TransactionDetailsList transactions={transactions} />
@@ -1319,16 +1379,19 @@ function DashboardDetailsModal({
   );
 }
 
-function PersonDetails({ person, isVendor, totalSales }) {
+function PersonDetails({ person, isVendor, totalSales, totalTransactions, onShowTransactions }) {
   const fields = [
-    ["Name", person.name || "-"],
-    ["Email", person.email || "-"],
-    ["Phone", person.phone || "-"],
-    ["Account type", isVendor ? "Vendor" : "Student"],
-    ["Account status", isVendor ? pageTitle(person.vendorStatus || "pending") : pageTitle(person.accountStatus || "active")],
-    [isVendor ? "Wallet balance" : "Wallet balance", formatMoney(person.walletBalance)],
-    ...(isVendor ? [["Total amount received", formatMoney(totalSales)]] : []),
-    ["Joined", person.createdAt ? new Date(person.createdAt).toLocaleString() : "-"],
+    { label: "Name", value: person.name || "-" },
+    { label: "Email", value: person.email || "-" },
+    { label: "Phone", value: person.phone || "-" },
+    { label: "Account type", value: isVendor ? "Vendor" : "Student" },
+    { label: "Account status", value: isVendor ? pageTitle(person.vendorStatus || "pending") : pageTitle(person.accountStatus || "active") },
+    { label: "Wallet balance", value: formatMoney(person.walletBalance) },
+    ...(isVendor ? [{ label: "Total amount received", value: formatMoney(totalSales) }] : []),
+    ...(!isVendor
+      ? [{ label: "Transactions", value: formatNumber(totalTransactions), actionLabel: "Show More", onAction: onShowTransactions }]
+      : []),
+    { label: "Joined", value: person.createdAt ? new Date(person.createdAt).toLocaleString() : "-" },
   ];
 
   return (
@@ -1341,15 +1404,268 @@ function PersonDetails({ person, isVendor, totalSales }) {
         </div>
       </div>
       <dl>
-        {fields.map(([label, value]) => (
-          <div key={label}>
-            <dt>{label}</dt>
-            <dd className={label === "Account status" && value === "Active" ? "active-status" : ""}>
-              {value}
+        {fields.map((field) => (
+          <div key={field.label} style={field.actionLabel ? { alignItems: "center" } : undefined}>
+            <dt>{field.label}</dt>
+            <dd
+              className={field.label === "Account status" && field.value === "Active" ? "active-status" : ""}
+              style={field.actionLabel ? { display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "12px" } : undefined}
+            >
+              <span>{field.value}</span>
+              {field.actionLabel && (
+                <button
+                  type="button"
+                  onClick={field.onAction}
+                  style={{
+                    border: 0,
+                    padding: 0,
+                    background: "transparent",
+                    color: "#2444c2",
+                    font: "inherit",
+                    fontSize: "0.78rem",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {field.actionLabel}
+                </button>
+              )}
             </dd>
           </div>
         ))}
       </dl>
+    </div>
+  );
+}
+
+function StudentTransactionPanel({ student, transactions }) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [sortOrder, setSortOrder] = useState("newest");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    const timer = window.setTimeout(() => setIsLoading(false), 0);
+    return () => window.clearTimeout(timer);
+  }, [student, transactions]);
+
+  const studentTransactions = [...transactions].sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
+
+  const summary = studentTransactions.reduce(
+    (accumulator, transaction) => {
+      const amount = Number(transaction.amount || 0);
+      const isCredit = transaction.type === "wallet_topup" || transaction.type === "refund";
+      const isDebit = transaction.type === "payment";
+
+      accumulator.totalTransactions += 1;
+      if (isCredit) {
+        accumulator.totalCreditAmount += amount;
+      }
+      if (isDebit) {
+        accumulator.totalDebitAmount += amount;
+        accumulator.totalAmountSpent += amount;
+      }
+      if (transaction.type === "wallet_topup") {
+        accumulator.totalAmountAdded += amount;
+      }
+      return accumulator;
+    },
+    {
+      totalTransactions: 0,
+      totalCreditAmount: 0,
+      totalDebitAmount: 0,
+      totalAmountSpent: 0,
+      totalAmountAdded: 0,
+    }
+  );
+
+  const latestTransactionDate = studentTransactions[0]?.createdAt
+    ? new Date(studentTransactions[0].createdAt).toLocaleString()
+    : "-";
+
+  const filteredTransactions = studentTransactions.filter((transaction) => {
+    const transactionId = String(transaction._id || transaction.id || "");
+    const status = String(transaction.status || "completed").toLowerCase();
+    const transactionType = transaction.type === "payment" ? "debit" : "credit";
+
+    const matchesSearch = !searchTerm.trim() || transactionId.toLowerCase().includes(searchTerm.trim().toLowerCase());
+    const matchesStatus = statusFilter === "all" || status === statusFilter;
+    const matchesType = typeFilter === "all" || transactionType === typeFilter;
+
+    return matchesSearch && matchesStatus && matchesType;
+  });
+
+  const sortedTransactions = [...filteredTransactions].sort((left, right) => {
+    const leftTime = new Date(left.createdAt).getTime();
+    const rightTime = new Date(right.createdAt).getTime();
+    return sortOrder === "oldest" ? leftTime - rightTime : rightTime - leftTime;
+  });
+
+  const pageSize = 10;
+  const totalPages = Math.max(1, Math.ceil(sortedTransactions.length / pageSize));
+  const visiblePage = Math.min(currentPage, totalPages);
+  const pageTransactions = sortedTransactions.slice((visiblePage - 1) * pageSize, visiblePage * pageSize);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, typeFilter, sortOrder]);
+
+  if (isLoading) {
+    return (
+      <div className="dashboard-student-transactions-loading">
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+          <div className="spinner" style={{ width: "32px", height: "32px", border: "3px solid rgba(36, 68, 194, 0.14)", borderTopColor: "#2444c2", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+          <span>Loading transaction history...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!studentTransactions.length) {
+    return <p className="dashboard-modal-empty">No transactions found for this student.</p>;
+  }
+
+  return (
+    <div className="dashboard-student-transactions-panel">
+      <section className="dashboard-student-transactions-summary" aria-label="Transaction summary">
+        <article className="dashboard-student-transactions-summary-card">
+          <span>Total Transactions</span>
+          <strong>{formatNumber(summary.totalTransactions)}</strong>
+        </article>
+        <article className="dashboard-student-transactions-summary-card">
+          <span>Total Credit Amount</span>
+          <strong>{formatMoney(summary.totalCreditAmount)}</strong>
+        </article>
+        <article className="dashboard-student-transactions-summary-card">
+          <span>Total Debit Amount</span>
+          <strong>{formatMoney(summary.totalDebitAmount)}</strong>
+        </article>
+        <article className="dashboard-student-transactions-summary-card">
+          <span>Total Amount Spent</span>
+          <strong>{formatMoney(summary.totalAmountSpent)}</strong>
+        </article>
+        <article className="dashboard-student-transactions-summary-card">
+          <span>Total Amount Added</span>
+          <strong>{formatMoney(summary.totalAmountAdded)}</strong>
+        </article>
+        <article className="dashboard-student-transactions-summary-card">
+          <span>Latest Transaction Date</span>
+          <strong>{latestTransactionDate}</strong>
+        </article>
+      </section>
+
+      <section className="dashboard-student-transactions-toolbar" aria-label="Transaction filters">
+        <div className="dashboard-student-transactions-field">
+          <label htmlFor="student-transaction-search">Search by Transaction ID</label>
+          <input
+            id="student-transaction-search"
+            type="search"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Search transaction ID"
+          />
+        </div>
+
+        <div className="dashboard-student-transactions-field">
+          <label htmlFor="student-transaction-status">Filter by Status</label>
+          <select id="student-transaction-status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+            <option value="all">All</option>
+            <option value="completed">Completed</option>
+            <option value="pending">Pending</option>
+            <option value="failed">Failed</option>
+          </select>
+        </div>
+
+        <div className="dashboard-student-transactions-field">
+          <label htmlFor="student-transaction-type">Filter by Transaction Type</label>
+          <select id="student-transaction-type" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+            <option value="all">All</option>
+            <option value="credit">Credit</option>
+            <option value="debit">Debit</option>
+          </select>
+        </div>
+
+        <div className="dashboard-student-transactions-field">
+          <label htmlFor="student-transaction-sort">Sort by Date</label>
+          <select id="student-transaction-sort" value={sortOrder} onChange={(event) => setSortOrder(event.target.value)}>
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+          </select>
+        </div>
+      </section>
+
+      {sortedTransactions.length === 0 ? (
+        <p className="dashboard-modal-empty">No transactions match the selected filters.</p>
+      ) : (
+        <>
+          <div className="dashboard-student-transactions-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Transaction ID</th>
+                  <th>Date</th>
+                  <th>Time</th>
+                  <th>Amount</th>
+                  <th>Transaction Type</th>
+                  <th>Vendor Name</th>
+                  <th>Student Name</th>
+                  <th>Payment Status</th>
+                  <th>Payment Method</th>
+                  <th>Description/Remarks</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageTransactions.map((transaction) => {
+                  const createdAt = transaction.createdAt ? new Date(transaction.createdAt) : null;
+                  const isCredit = transaction.type === "wallet_topup" || transaction.type === "refund";
+                  const amountPrefix = isCredit ? "+" : "-";
+                  const transactionType = isCredit ? "Credit" : "Debit";
+
+                  return (
+                    <tr key={transaction._id || transaction.id}>
+                      <td>{transaction._id || transaction.id || "-"}</td>
+                      <td>{createdAt ? createdAt.toLocaleDateString() : "-"}</td>
+                      <td>{createdAt ? createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "-"}</td>
+                      <td>{amountPrefix}{formatMoney(transaction.amount).replace(/^₹/, "₹")}</td>
+                      <td>{transactionType}</td>
+                      <td>{getTransactionPartyName(transaction.vendor || transaction.toWallet?.owner)}</td>
+                      <td>{getTransactionPartyName(transaction.student || transaction.fromWallet?.owner || transaction.toWallet?.owner)}</td>
+                      <td>
+                        <span className={`transaction-status ${String(transaction.status || "completed").toLowerCase()}`}>
+                          {transaction.status || "completed"}
+                        </span>
+                      </td>
+                      <td>{getTransactionPaymentMethod(transaction)}</td>
+                      <td>{transaction.description || "-"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="dashboard-student-transactions-pagination">
+            <span>
+              Showing {pageTransactions.length} of {sortedTransactions.length} transactions
+            </span>
+            <div>
+              <button type="button" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={visiblePage === 1}>
+                Previous
+              </button>
+              <span>
+                Page {visiblePage} of {totalPages}
+              </span>
+              <button type="button" onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={visiblePage === totalPages}>
+                Next
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
