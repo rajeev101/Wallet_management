@@ -1364,6 +1364,7 @@ function AdminDashboardPage({ setPage }) {
           getVendorTransactionsCount={getVendorTransactionsCount}
         />
       )}
+      </main>
     </div>
   );
 }
