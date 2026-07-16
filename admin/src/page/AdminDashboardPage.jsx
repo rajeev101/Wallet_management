@@ -1250,6 +1250,7 @@ function AdminDashboardPage({ setPage }) {
                   totalSales={null}
                   totalTransactions={null}
                   allTransactions={transactions}
+                  onShowTransactions={() => {}}
                 />
               </section>
             )}
@@ -1364,6 +1365,7 @@ function AdminDashboardPage({ setPage }) {
           getVendorTransactionsCount={getVendorTransactionsCount}
         />
       )}
+      </main>
     </div>
   );
 }
@@ -1438,6 +1440,7 @@ function DashboardDetailsModal({
               isVendor={type === "vendors"}
               totalSales={type === "vendors" ? getVendorSales(selectedItem) : null}
               totalTransactions={type === "vendors" ? getVendorTransactionsCount(selectedItem) : null}
+              onShowTransactions={() => setStudentTransactionTarget(selectedItem)}
             />
           ) : type === "transactions" ? (
             <TransactionDetailsList transactions={transactions} />
@@ -1478,7 +1481,7 @@ function DashboardDetailsModal({
   );
 }
 
-function PersonDetails({ person, isVendor, totalSales, totalTransactions, allTransactions = [] }) {
+function PersonDetails({ person, isVendor, totalSales, totalTransactions, allTransactions = [], onShowTransactions = () => {} }) {
   const [showTxPanel, setShowTxPanel] = useState(false);
 
   const studentTransactionCount = !isVendor
@@ -2301,5 +2304,6 @@ function AdminIcon({ type }) {
     </svg>
   );
 }
+
 
 export default AdminDashboardPage;
