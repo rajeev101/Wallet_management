@@ -6119,7 +6119,6 @@
   transition: all 0.15s ease;
 }
 
-
 .vendor-date-dropdown button:hover,
 .vendor-date-dropdown button.selected {
   color: #6366f1;
