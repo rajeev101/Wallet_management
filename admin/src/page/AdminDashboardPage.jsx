@@ -1865,4 +1865,5 @@ function AdminIcon({ type }) {
   );
 }
 
+
 export default AdminDashboardPage;
