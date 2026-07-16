@@ -337,24 +337,27 @@ function StatDetailModal({ type, onClose }) {
         backgroundColor: "rgba(15, 22, 41, 0.65)",
         backdropFilter: "blur(4px)",
         display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        alignItems: "stretch",
+        justifyContent: "stretch",
         zIndex: 1000,
-        padding: "20px"
+        padding: 0,
+        overflow: "hidden"
       }}
       onClick={onClose}
     >
       <div 
         style={{
           background: "#ffffff",
-          width: "min(680px, 100%)",
-          borderRadius: "16px",
+          width: "100%",
+          height: "100%",
+          borderRadius: 0,
           padding: "24px",
-          boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+          boxShadow: "none",
           display: "flex",
           flexDirection: "column",
-          maxHeight: "85vh",
-          border: "1px solid rgba(0, 0, 0, 0.08)"
+          maxHeight: "100vh",
+          border: "none",
+          boxSizing: "border-box"
         }}
         onClick={(e) => e.stopPropagation()}
       >
