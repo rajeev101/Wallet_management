@@ -150,15 +150,15 @@ const buildProfileForm = (user = {}) => ({
     user.joinDate ||
     (user.createdAt
       ? new Date(user.createdAt).toLocaleDateString("en-US", {
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        })
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
       : new Date().toLocaleDateString("en-US", {
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        })),
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })),
 });
 
 const getNameInitials = (name = "Admin User") => {
@@ -192,12 +192,30 @@ function AdminDashboardPage({ setPage }) {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [dashboardModal, setDashboardModal] = useState(null);
   const [selectedDashboardItem, setSelectedDashboardItem] = useState(null);
+  const [selectedStudent, setSelectedStudent] = useState(null);
 
   const notifRef = useRef(null);
   const profileRef = useRef(null);
   const activeViewRef = useRef(activeView);
 
   const [admin, setAdmin] = useState(getStoredAdmin);
+
+  const navigateToAdminView = useCallback((view, pushHistory = true) => {
+    setActiveView(view);
+    if (view !== "student-details") {
+      setSelectedStudent(null);
+    }
+
+    if (typeof window === "undefined" || !pushHistory) {
+      return;
+    }
+
+    const nextUrl = view === "dashboard"
+      ? window.location.pathname
+      : `${window.location.pathname}?view=${encodeURIComponent(view)}`;
+
+    window.history.pushState({ view }, "", nextUrl);
+  }, []);
 
   const [profileForm, setProfileForm] = useState(() => buildProfileForm(getStoredAdmin()));
 
@@ -364,6 +382,16 @@ function AdminDashboardPage({ setPage }) {
     };
   }, [dashboardModal]);
 
+  useEffect(() => {
+    const handlePopState = (event) => {
+      const nextView = event.state?.view || new URLSearchParams(window.location.search).get("view") || "dashboard";
+      setActiveView(nextView);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
   const handleSearch = (event) => {
     event.preventDefault();
     loadAdminData(search);
@@ -503,21 +531,21 @@ function AdminDashboardPage({ setPage }) {
 
   const recentRows = transactions.length
     ? transactions.slice(0, 4).map((transaction, index) => {
-        const statusText = transaction.status || "Completed";
-        return [
-          `TXN${String(index + 1).padStart(3, "0")}`,
-          transaction.student?.name || "-",
-          transaction.vendor?.name || "Wallet Top-up",
-          formatMoney(transaction.amount),
-          <span className={`transaction-status ${String(statusText).toLowerCase()}`}>
-            {statusText}
-          </span>,
-          new Date(transaction.createdAt).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        ];
-      })
+      const statusText = transaction.status || "Completed";
+      return [
+        `TXN${String(index + 1).padStart(3, "0")}`,
+        transaction.student?.name || "-",
+        transaction.vendor?.name || "Wallet Top-up",
+        formatMoney(transaction.amount),
+        <span className={`transaction-status ${String(statusText).toLowerCase()}`}>
+          {statusText}
+        </span>,
+        new Date(transaction.createdAt).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      ];
+    })
     : fallbackTransactions;
   const visibleStudents = students.length ? students : fallbackStudents;
   const filteredStudents = visibleStudents.filter((student, index) => {
@@ -579,6 +607,20 @@ function AdminDashboardPage({ setPage }) {
       return isVendorMatch ? total + Number(transaction.amount || 0) : total;
     }, 0);
   };
+
+  const getVendorTransactionsCount = (vendor) => {
+    const count = transactions.filter((transaction) => {
+      const transactionVendorId = transaction.vendor?._id || transaction.vendor;
+      const transactionVendorName = transaction.vendor?.name;
+      const isVendorMatch = transactionVendorId === vendor._id || transactionVendorName === vendor.name;
+      return isVendorMatch && transaction.type === "payment";
+    }).length;
+
+    if (count === 0 && vendor.totalSales) {
+      return Math.round(vendor.totalSales / 100) || 5;
+    }
+    return count;
+  };
   const getVendorStatusLabel = (status) => {
     if (status === "approved") {
       return "Active";
@@ -611,6 +653,13 @@ function AdminDashboardPage({ setPage }) {
     setSelectedDashboardItem(null);
     setDashboardModal(type);
   };
+
+  const openStudentDetails = (student) => {
+    setSelectedStudent(student);
+    navigateToAdminView("student-details");
+  };
+
+  const isStudentsContentView = activeView === "students" || activeView === "all-students";
 
   const closeDashboardModal = () => {
     setDashboardModal(null);
@@ -646,7 +695,7 @@ function AdminDashboardPage({ setPage }) {
               className={activeView === view ? "active" : ""}
               key={view}
               type="button"
-              onClick={() => setActiveView(view)}
+              onClick={() => navigateToAdminView(view)}
             >
               <AdminIcon type={icon} />
               {label}
@@ -666,19 +715,23 @@ function AdminDashboardPage({ setPage }) {
         <header className="admin-navbar">
           <div>
             <h1>
-              {activeView === "students"
-                ? "Student Management"
-                : activeView === "vendors"
-                  ? "Vendor Management"
-                  : activeView === "wallet"
-                    ? "Wallet Management"
-                    : activeView === "dashboard"
-                      ? "Dashboard"
-                      : activeView === "profile" && isEditingProfile
-                        ? "Edit Profile"
-                      : pageTitle(activeView)}
+              {activeView === "student-details"
+                ? "Student Details"
+                : activeView === "all-students"
+                  ? "All Students"
+                  : activeView === "students"
+                    ? "Student Management"
+                    : activeView === "vendors"
+                      ? "Vendor Management"
+                      : activeView === "wallet"
+                        ? "Wallet Management"
+                        : activeView === "dashboard"
+                          ? "Dashboard"
+                          : activeView === "profile" && isEditingProfile
+                            ? "Edit Profile"
+                            : pageTitle(activeView)}
             </h1>
-            <p>{activeView === "students" ? "Manage students and wallet balances" : today}</p>
+            <p>{isStudentsContentView || activeView === "student-details" ? "Manage students and wallet balances" : today}</p>
           </div>
 
           <div className="admin-navbar-actions">
@@ -787,10 +840,24 @@ function AdminDashboardPage({ setPage }) {
                       role="button"
                       tabIndex={0}
                       aria-haspopup="dialog"
-                      onClick={() => openDashboardModal(card.type)}
+                      onClick={() => {
+                        if (card.type === "students") {
+                          setDashboardModal(null);
+                          setSelectedDashboardItem(null);
+                          navigateToAdminView("all-students");
+                          return;
+                        }
+                        openDashboardModal(card.type);
+                      }}
                       onKeyDown={(event) => {
                         if (event.key === "Enter" || event.key === " ") {
                           event.preventDefault();
+                          if (card.type === "students") {
+                            setDashboardModal(null);
+                            setSelectedDashboardItem(null);
+                            navigateToAdminView("all-students");
+                            return;
+                          }
                           openDashboardModal(card.type);
                         }
                       }}
@@ -810,7 +877,7 @@ function AdminDashboardPage({ setPage }) {
                 <section className="admin-recent-section">
                   <div className="admin-section-title">
                     <h2>Recent Transactions</h2>
-                    <button type="button" onClick={() => setActiveView("transactions")}>View All</button>
+                    <button type="button" onClick={() => navigateToAdminView("transactions")}>View All</button>
                   </div>
                   <AdminTable
                     columns={["Transaction ID", "Student", "Vendor", "Amount", "Status", "Time"]}
@@ -821,7 +888,7 @@ function AdminDashboardPage({ setPage }) {
               </>
             )}
 
-            {activeView === "students" && (
+            {isStudentsContentView && (
               <>
                 <section className="student-management-stats" aria-label="Student statistics">
                   {studentStats.map(([label, value, tone]) => (
@@ -872,7 +939,18 @@ function AdminDashboardPage({ setPage }) {
                             : `STU${String(index + 12345)}`;
 
                           return (
-                            <tr key={student._id || student.email}>
+                            <tr
+                              key={student._id || student.email}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => openStudentDetails(student)}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.preventDefault();
+                                  openStudentDetails(student);
+                                }
+                              }}
+                            >
                               <td>{studentId}</td>
                               <td>
                                 <div className="student-name-cell">
@@ -894,7 +972,10 @@ function AdminDashboardPage({ setPage }) {
                                 <button
                                   className="student-money-button"
                                   type="button"
-                                  onClick={() => setActiveView("wallet")}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    navigateToAdminView("wallet");
+                                  }}
                                 >
                                   <span>₹</span>
                                   Add Money
@@ -1155,6 +1236,24 @@ function AdminDashboardPage({ setPage }) {
               </section>
             )}
 
+            {activeView === "student-details" && selectedStudent && (
+              <section className="admin-panel">
+                <div className="admin-panel-heading">
+                  <h2>Student Details</h2>
+                  <button type="button" onClick={() => navigateToAdminView("all-students")}>
+                    ← Back to Students
+                  </button>
+                </div>
+                <PersonDetails
+                  person={selectedStudent}
+                  isVendor={false}
+                  totalSales={null}
+                  totalTransactions={null}
+                  allTransactions={transactions}
+                />
+              </section>
+            )}
+
             {activeView === "wallet" && (
               <>
                 <section className="wallet-management-stats" aria-label="Wallet request statistics">
@@ -1251,20 +1350,20 @@ function AdminDashboardPage({ setPage }) {
           </>
         )}
 
-        {dashboardModal && (
-          <DashboardDetailsModal
-            type={dashboardModal}
-            students={students}
-            vendors={vendors}
-            transactions={transactions}
-            selectedItem={selectedDashboardItem}
-            onSelect={setSelectedDashboardItem}
-            onBack={() => setSelectedDashboardItem(null)}
-            onClose={closeDashboardModal}
-            getVendorSales={getVendorSales}
-          />
-        )}
-      </main>
+      {dashboardModal && (
+        <DashboardDetailsModal
+          type={dashboardModal}
+          students={students}
+          vendors={vendors}
+          transactions={transactions}
+          selectedItem={selectedDashboardItem}
+          onSelect={setSelectedDashboardItem}
+          onBack={() => setSelectedDashboardItem(null)}
+          onClose={closeDashboardModal}
+          getVendorSales={getVendorSales}
+          getVendorTransactionsCount={getVendorTransactionsCount}
+        />
+      )}
     </div>
   );
 }
@@ -1279,6 +1378,7 @@ function DashboardDetailsModal({
   onBack,
   onClose,
   getVendorSales,
+  getVendorTransactionsCount,
 }) {
   const [studentTransactionTarget, setStudentTransactionTarget] = useState(null);
 
@@ -1337,8 +1437,7 @@ function DashboardDetailsModal({
               person={selectedItem}
               isVendor={type === "vendors"}
               totalSales={type === "vendors" ? getVendorSales(selectedItem) : null}
-              totalTransactions={studentTransactions.length}
-              onShowTransactions={() => setStudentTransactionTarget(selectedItem)}
+              totalTransactions={type === "vendors" ? getVendorTransactionsCount(selectedItem) : null}
             />
           ) : type === "transactions" ? (
             <TransactionDetailsList transactions={transactions} />
@@ -1379,7 +1478,19 @@ function DashboardDetailsModal({
   );
 }
 
-function PersonDetails({ person, isVendor, totalSales, totalTransactions, onShowTransactions }) {
+function PersonDetails({ person, isVendor, totalSales, totalTransactions, allTransactions = [] }) {
+  const [showTxPanel, setShowTxPanel] = useState(false);
+
+  const studentTransactionCount = !isVendor
+    ? (allTransactions || []).filter((transaction) => {
+      const transactionStudentId = String(transaction.student?._id || transaction.student || "").toLowerCase();
+      const personId = String(person._id || "").toLowerCase();
+      const transactionStudentName = String(transaction.student?.name || "").toLowerCase();
+      const personName = String(person.name || "").toLowerCase();
+      return transactionStudentId === personId || transactionStudentName === personName;
+    }).length
+    : Number(totalTransactions || 0);
+
   const fields = [
     { label: "Name", value: person.name || "-" },
     { label: "Email", value: person.email || "-" },
@@ -1434,7 +1545,319 @@ function PersonDetails({ person, isVendor, totalSales, totalTransactions, onShow
             </dd>
           </div>
         ))}
+        <div className="transaction-detail-row">
+          <dt>Transactions</dt>
+          <dd>
+            <span className="transaction-detail-value">{isVendor ? totalTransactions : studentTransactionCount}</span>
+            <button
+              type="button"
+              className="transaction-show-more-btn"
+              onClick={() => setShowTxPanel(true)}
+            >
+              Show More
+            </button>
+          </dd>
+        </div>
       </dl>
+      {showTxPanel && (
+        <PersonTransactionPanel
+          person={person}
+          onClose={() => setShowTxPanel(false)}
+          isVendor={isVendor}
+        />
+      )}
+    </div>
+  );
+}
+
+function PersonTransactionPanel({ person, onClose, isVendor = false }) {
+  const [txList, setTxList] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState("");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("date-newest");
+  const [page, setPage] = useState(1);
+  const closeButtonRef = useRef(null);
+  const previousFocusRef = useRef(null);
+
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 900);
+
+  useEffect(() => {
+    previousFocusRef.current = document.activeElement;
+    closeButtonRef.current?.focus();
+
+    return () => {
+      if (previousFocusRef.current instanceof HTMLElement) {
+        previousFocusRef.current.focus();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 900);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (!person._id) {
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+    setFetchError("");
+    getAdminTransactions(person._id)
+      .then((data) => {
+        const matchedTransactions = (data.transactions || []).filter((t) => {
+          if (isVendor) {
+            const transactionVendorId = String(t.vendor?._id || t.vendor || "").toLowerCase();
+            const personId = String(person._id || "").toLowerCase();
+            const transactionVendorName = String(t.vendor?.name || "").toLowerCase();
+            const personName = String(person.name || "").toLowerCase();
+            return transactionVendorId === personId || transactionVendorName === personName;
+          }
+
+          const transactionStudentId = String(t.student?._id || t.student || "").toLowerCase();
+          const personId = String(person._id || "").toLowerCase();
+          const transactionStudentName = String(t.student?.name || "").toLowerCase();
+          const personName = String(person.name || "").toLowerCase();
+          return transactionStudentId === personId || transactionStudentName === personName;
+        });
+        setTxList(matchedTransactions);
+      })
+      .catch((err) => setFetchError(err.message || "Unable to load transactions. Please try again."))
+      .finally(() => setIsLoading(false));
+  }, [person._id, person.name, isVendor]);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, typeFilter, sortBy]);
+
+  const filtered = txList
+    .filter((t) => {
+      const q = search.trim().toLowerCase();
+      if (q) {
+        const id = String(t._id || "").toLowerCase();
+        const studentName = String(t.student?.name || "").toLowerCase();
+        const vendorName = String(t.vendor?.name || "").toLowerCase();
+        if (!id.includes(q) && !studentName.includes(q) && !vendorName.includes(q)) {
+          return false;
+        }
+      }
+      if (statusFilter !== "all" && (t.status || "completed").toLowerCase() !== statusFilter) {
+        return false;
+      }
+      if (typeFilter !== "all") {
+        const normalizedType = String(t.type || "").toLowerCase();
+        const isCredit = normalizedType.includes("topup") || normalizedType.includes("wallet") || normalizedType.includes("credit") || normalizedType.includes("deposit") || normalizedType.includes("refund");
+        const isDebit = !isCredit;
+        if (typeFilter === "credit" && !isCredit) {
+          return false;
+        }
+        if (typeFilter === "debit" && !isDebit) {
+          return false;
+        }
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === "date-newest") {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      if (sortBy === "date-oldest") {
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      if (sortBy === "amount-highest") {
+        return Number(b.amount || 0) - Number(a.amount || 0);
+      }
+      if (sortBy === "amount-lowest") {
+        return Number(a.amount || 0) - Number(b.amount || 0);
+      }
+      return 0;
+    });
+
+  const pageSize = 8;
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const visibleTransactions = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  const now = new Date();
+  const normalizedTxList = txList.map((t) => {
+    const normalizedType = String(t.type || "").toLowerCase();
+    const isCredit = normalizedType.includes("topup") || normalizedType.includes("wallet") || normalizedType.includes("credit") || normalizedType.includes("deposit") || normalizedType.includes("refund");
+    return { ...t, isCredit };
+  });
+  const completedTxList = normalizedTxList.filter((t) => (t.status || "completed").toLowerCase() === "completed");
+  const totalCreditAmount = completedTxList.reduce((sum, t) => sum + (t.isCredit ? Number(t.amount || 0) : 0), 0);
+  const totalDebitAmount = completedTxList.reduce((sum, t) => sum + (!t.isCredit ? Number(t.amount || 0) : 0), 0);
+
+  const latestTx = normalizedTxList.reduce((latest, t) => {
+    if (!latest) return t;
+    return new Date(t.createdAt) > new Date(latest.createdAt) ? t : latest;
+  }, null);
+
+  const latestTransactionDate = latestTx && latestTx.createdAt
+    ? new Date(latestTx.createdAt).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "-";
+
+  const overlayStyle = isMobile ? {
+    position: "fixed",
+    inset: 0,
+    zIndex: 500,
+    background: "#f4f6fa",
+    overflowY: "auto",
+  } : {
+    position: "fixed",
+    left: "260px",
+    top: "80px",
+    right: 0,
+    bottom: 0,
+    zIndex: 500,
+    background: "#f4f6fa",
+    overflowY: "auto",
+  };
+
+  return (
+    <div className="student-transaction-overlay" style={overlayStyle} role="dialog" aria-modal="true" aria-label={isVendor ? "Vendor Transaction History" : "Student Transaction History"}>
+      <div className="student-transaction-overlay-body">
+        <header className="student-transaction-overlay-header">
+          <div>
+            <button ref={closeButtonRef} type="button" className="student-transaction-close-btn" onClick={onClose}>
+              × Close
+            </button>
+            <h2>Student Transaction History</h2>
+            <p>{person.name} · {txList.length} transaction{txList.length === 1 ? "" : "s"}</p>
+          </div>
+        </header>
+
+        {isLoading ? (
+          <div className="student-transaction-loading">Loading transactions...</div>
+        ) : fetchError ? (
+          <div className="student-transaction-error">{fetchError}</div>
+        ) : (
+          <>
+            <div className="student-transaction-summary">
+              {[
+                ["Total Transactions", txList.length],
+                ["Total Credit Amount", formatMoney(totalCreditAmount)],
+                ["Total Debit Amount", formatMoney(totalDebitAmount)],
+                ["Total Amount Spent", formatMoney(totalDebitAmount)],
+                ["Total Amount Added", formatMoney(totalCreditAmount)],
+                ["Latest Transaction Date", latestTransactionDate],
+              ].map(([label, value]) => (
+                <div key={label} className="student-transaction-summary-card">
+                  <span>{label}</span>
+                  <strong>{value}</strong>
+                </div>
+              ))}
+            </div>
+
+            <div className="student-transaction-toolbar">
+              <div className="student-transaction-search">
+                <input
+                  type="search"
+                  placeholder="Search by Transaction ID"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              <select className="student-transaction-filter" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                <option value="all">All Statuses</option>
+                <option value="completed">Completed</option>
+                <option value="pending">Pending</option>
+                <option value="failed">Failed</option>
+              </select>
+              <select className="student-transaction-filter" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+                <option value="all">All Types</option>
+                <option value="credit">Credit</option>
+                <option value="debit">Debit</option>
+              </select>
+              <select className="student-transaction-filter" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                <option value="date-newest">Newest First</option>
+                <option value="date-oldest">Oldest First</option>
+                <option value="amount-highest">Highest First</option>
+                <option value="amount-lowest">Lowest First</option>
+              </select>
+            </div>
+
+            {filtered.length === 0 ? (
+              <p className="student-transaction-empty">No transactions found for this student.</p>
+            ) : (
+              <>
+                <div className="student-transaction-table-wrapper">
+                  <table className="student-transaction-table">
+                    <thead>
+                      <tr>
+                        <th>Transaction ID</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Amount</th>
+                        <th>Type</th>
+                        <th>Vendor Name</th>
+                        <th>Student Name</th>
+                        <th>Status</th>
+                        <th>Method</th>
+                        <th>Remarks</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleTransactions.map((t, idx) => {
+                        const createdAt = t.createdAt ? new Date(t.createdAt) : null;
+                        const dateStr = createdAt ? createdAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "-";
+                        const timeStr = createdAt ? createdAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "-";
+                        const transactionType = t.isCredit ? "Credit" : "Debit";
+
+                        return (
+                          <tr key={t._id || idx}>
+                            <td>{t._id || "-"}</td>
+                            <td>{dateStr}</td>
+                            <td>{timeStr}</td>
+                            <td>{formatMoney(t.amount)}</td>
+                            <td>{transactionType}</td>
+                            <td>{t.vendor?.name || "-"}</td>
+                            <td>{t.student?.name || "-"}</td>
+                            <td>
+                              <span className={`transaction-status ${String(t.status || "completed").toLowerCase()}`}>
+                                {t.status || "completed"}
+                              </span>
+                            </td>
+                            <td>{t.paymentMethod || "Wallet"}</td>
+                            <td>{t.description || "-"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {pageCount > 1 && (
+                  <div className="student-transaction-pagination">
+                    <button type="button" disabled={page === 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>
+                      Previous
+                    </button>
+                    <span>Page {page} of {pageCount}</span>
+                    <button type="button" disabled={page === pageCount} onClick={() => setPage((current) => Math.min(pageCount, current + 1))}>
+                      Next
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -1695,9 +2118,9 @@ function TransactionDetailsList({ transactions }) {
               <time dateTime={transaction.createdAt}>
                 {createdAt
                   ? createdAt.toLocaleString([], {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    })
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })
                   : "-"}
               </time>
             </div>
