@@ -1970,18 +1970,6 @@ function StudentTransactionPanel({ student, transactions }) {
           <span>Total Debit Amount</span>
           <strong>{formatMoney(summary.totalDebitAmount)}</strong>
         </article>
-        <article className="dashboard-student-transactions-summary-card">
-          <span>Total Amount Spent</span>
-          <strong>{formatMoney(summary.totalAmountSpent)}</strong>
-        </article>
-        <article className="dashboard-student-transactions-summary-card">
-          <span>Total Amount Added</span>
-          <strong>{formatMoney(summary.totalAmountAdded)}</strong>
-        </article>
-        <article className="dashboard-student-transactions-summary-card">
-          <span>Latest Transaction Date</span>
-          <strong>{latestTransactionDate}</strong>
-        </article>
       </section>
 
       <section className="dashboard-student-transactions-toolbar" aria-label="Transaction filters">
@@ -2040,7 +2028,6 @@ function StudentTransactionPanel({ student, transactions }) {
                   <th>Vendor Name</th>
                   <th>Student Name</th>
                   <th>Payment Status</th>
-                  <th>Payment Method</th>
                   <th>Description/Remarks</th>
                 </tr>
               </thead>
@@ -2065,7 +2052,6 @@ function StudentTransactionPanel({ student, transactions }) {
                           {transaction.status || "completed"}
                         </span>
                       </td>
-                      <td>{getTransactionPaymentMethod(transaction)}</td>
                       <td>{transaction.description || "-"}</td>
                     </tr>
                   );
