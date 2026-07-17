@@ -1201,6 +1201,231 @@
   color: #16a34a;
 }
 
+.transaction-detail-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.7fr) 1.3fr;
+  gap: 20px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #edf1f6;
+}
+
+.transaction-detail-row:last-child {
+  border-bottom: 0;
+}
+
+.transaction-detail-row dt {
+  color: #71809a;
+  font-size: 0.82rem;
+}
+
+.transaction-detail-row dd {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: 0;
+  color: #111827;
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+.transaction-detail-value {
+  color: #111827;
+  font-weight: 700;
+}
+
+.transaction-show-more-btn {
+  margin: 0;
+  padding: 7px 10px;
+  border: 1px solid #d7e0ee;
+  border-radius: 8px;
+  background: #f7fafe;
+  color: #1f2937;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.student-transaction-overlay {
+  position: fixed;
+  z-index: 500;
+  background: #f8fafc;
+  overflow-y: auto;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
+  animation: student-transaction-fade-in 180ms ease-out;
+}
+
+.student-transaction-overlay-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: 24px;
+}
+
+.student-transaction-overlay-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding-bottom: 18px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #e5eaf1;
+  background: #f8fafc;
+}
+
+.student-transaction-overlay-header h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 1.05rem;
+}
+
+.student-transaction-overlay-header p {
+  margin: 6px 0 0;
+  color: #71809a;
+  font-size: 0.8rem;
+}
+
+.student-transaction-close-btn {
+  margin: 0 0 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #4b5563;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.student-transaction-loading,
+.student-transaction-empty,
+.student-transaction-error {
+  padding: 24px 0;
+  color: #71809a;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.student-transaction-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.student-transaction-summary-card {
+  padding: 14px 16px;
+  border: 1px solid #e5eaf1;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.student-transaction-summary-card span {
+  display: block;
+  color: #71809a;
+  font-size: 0.74rem;
+}
+
+.student-transaction-summary-card strong {
+  display: block;
+  margin-top: 4px;
+  color: #111827;
+  font-size: 0.92rem;
+}
+
+.student-transaction-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.student-transaction-search {
+  flex: 1 1 220px;
+}
+
+.student-transaction-search input,
+.student-transaction-filter {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid #d7e0ee;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  font: inherit;
+  font-size: 0.84rem;
+}
+
+.student-transaction-filter {
+  flex: 0 0 140px;
+}
+
+.student-transaction-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid #e5eaf1;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.student-transaction-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.student-transaction-table th,
+.student-transaction-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #edf1f6;
+  color: #111827;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.student-transaction-table thead th {
+  color: #71809a;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.student-transaction-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+  color: #71809a;
+  font-size: 0.8rem;
+}
+
+.student-transaction-pagination button {
+  padding: 7px 10px;
+  border: 1px solid #d7e0ee;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  font: inherit;
+  cursor: pointer;
+}
+
+.student-transaction-pagination button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@keyframes student-transaction-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .dashboard-transaction-list {
   display: grid;
 }
@@ -1465,20 +1690,25 @@
     text-align: left;
   }
 
-  .dashboard-student-transactions-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .dashboard-student-transactions-toolbar {
+  .transaction-detail-row {
     grid-template-columns: 1fr;
+    gap: 6px;
   }
 
-  .dashboard-student-transactions-pagination {
-    align-items: flex-start;
+  .transaction-detail-row dd {
+    justify-content: flex-start;
   }
 
-  .dashboard-student-transactions-pagination > div {
-    flex-wrap: wrap;
+  .student-transaction-overlay-body {
+    padding: 16px;
+  }
+
+  .student-transaction-toolbar {
+    flex-direction: column;
+  }
+
+  .student-transaction-filter {
+    flex-basis: auto;
   }
 }
 

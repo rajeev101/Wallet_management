@@ -30,19 +30,16 @@ const getStoredStudent = () => {
 };
 
 function StatDetailModal({ type, onClose }) {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const hasToken = Boolean(localStorage.getItem("cpacToken"));
+  const [loading, setLoading] = useState(hasToken);
+  const [error, setError] = useState(() => (hasToken ? "" : "Session expired. Please log in again."));
   const [transactions, setTransactions] = useState([]);
 
   useEffect(() => {
     const token = localStorage.getItem("cpacToken");
     if (!token) {
-      setError("Session expired. Please log in again.");
-      setLoading(false);
       return;
     }
-    setLoading(true);
-    setError("");
     getMyTransactions(token)
       .then((data) => {
         if (data.success) {
@@ -329,7 +326,7 @@ function StatDetailModal({ type, onClose }) {
   return (
     <div 
       style={{
-        position: "fixed",
+        position: "absolute",
         top: 0,
         left: 0,
         right: 0,
@@ -370,6 +367,7 @@ function StatDetailModal({ type, onClose }) {
           >
             &times;
           </button>
+
         </div>
         <div style={{ overflowY: "auto", flex: 1, paddingRight: "4px" }}>
           {renderContent()}
@@ -706,15 +704,15 @@ function StudentDashboardPage({ setPage }) {
               onProfileChange={setStudent}
             />
           )}
+
+          {activeModal && (
+            <StatDetailModal
+              type={activeModal}
+              onClose={() => setActiveModal(null)}
+            />
+          )}
         </main>
       </div>
-
-      {activeModal && (
-        <StatDetailModal 
-          type={activeModal} 
-          onClose={() => setActiveModal(null)} 
-        />
-      )}
     </div>
   );
 }
