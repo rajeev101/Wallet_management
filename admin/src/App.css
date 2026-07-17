@@ -1014,6 +1014,31 @@
   font-size: 1.18rem;
 }
 
+.dashboard-modal-title-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.dashboard-student-search {
+  width: min(280px, 46vw);
+  min-height: 38px;
+  border: 1px solid #dce5f0;
+  border-radius: 10px;
+  padding: 0 12px;
+  color: #111827;
+  background: #ffffff;
+  font: inherit;
+  font-size: 0.84rem;
+  outline: none;
+}
+
+.dashboard-student-search:focus {
+  border-color: #2444c2;
+  box-shadow: 0 0 0 3px rgba(36, 68, 194, 0.12);
+}
+
 .dashboard-modal-header p {
   margin: 5px 0 0;
   color: #71809a;
@@ -1561,6 +1586,11 @@
   border-collapse: collapse;
 }
 
+.student-detail-transactions-table table {
+  min-width: 0;
+  table-layout: fixed;
+}
+
 .dashboard-student-transactions-table th,
 .dashboard-student-transactions-table td {
   padding: 12px 14px;
@@ -1577,6 +1607,62 @@
   font-weight: 600;
   text-transform: uppercase;
   background: #f8fafc;
+}
+
+.student-detail-transactions-table th,
+.student-detail-transactions-table td {
+  padding: 10px 8px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.student-detail-transactions-table th {
+  font-size: 0.62rem;
+}
+
+.student-detail-transactions-table th:nth-child(1),
+.student-detail-transactions-table td:nth-child(1) {
+  width: 17%;
+}
+
+.student-detail-transactions-table th:nth-child(2),
+.student-detail-transactions-table td:nth-child(2) {
+  width: 8%;
+}
+
+.student-detail-transactions-table th:nth-child(3),
+.student-detail-transactions-table td:nth-child(3) {
+  width: 6%;
+}
+
+.student-detail-transactions-table th:nth-child(4),
+.student-detail-transactions-table td:nth-child(4),
+.student-detail-transactions-table th:nth-child(5),
+.student-detail-transactions-table td:nth-child(5),
+.student-detail-transactions-table th:nth-child(6),
+.student-detail-transactions-table td:nth-child(6) {
+  width: 8%;
+}
+
+.student-detail-transactions-table th:nth-child(7),
+.student-detail-transactions-table td:nth-child(7) {
+  width: 10%;
+}
+
+.student-detail-transactions-table th:nth-child(8),
+.student-detail-transactions-table td:nth-child(8) {
+  width: 13%;
+}
+
+.student-detail-transactions-table th:nth-child(9),
+.student-detail-transactions-table td:nth-child(9) {
+  width: 10%;
+}
+
+.student-detail-transactions-table th:nth-child(10),
+.student-detail-transactions-table td:nth-child(10) {
+  width: 12%;
 }
 
 .dashboard-student-transactions-table tbody tr:last-child td {
@@ -1920,7 +2006,6 @@
   font-weight: 500;
   cursor: pointer;
 }
-
 .admin-profile-form {
   display: grid;
   gap: 14px;
@@ -3952,7 +4037,6 @@
   border-collapse: collapse;
   text-align: left;
 }
-
 .history-table th,
 .history-table td {
   padding: 14px 24px;
@@ -5924,7 +6008,6 @@
   .student-management-stats {
     grid-template-columns: 1fr;
   }
-
   .student-management-stats article {
     min-height: 120px;
     padding: 24px;
