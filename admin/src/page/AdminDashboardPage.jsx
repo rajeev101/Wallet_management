@@ -1341,6 +1341,25 @@ function AdminDashboardPage({ setPage }) {
               </section>
             )}
 
+            {activeView === "student-details" && selectedStudent && (
+              <section className="admin-panel">
+                <div className="admin-panel-heading">
+                  <h2>Student Details</h2>
+                  <button type="button" onClick={() => navigateToAdminView("all-students")}>
+                    ← Back to Students
+                  </button>
+                </div>
+                <PersonDetails
+                  person={selectedStudent}
+                  isVendor={false}
+                  totalSales={null}
+                  totalTransactions={null}
+                  allTransactions={transactions}
+                  onShowTransactions={() => {}}
+                />
+              </section>
+            )}
+
             {activeView === "wallet" && (
               <>
                 <section className="wallet-management-stats" aria-label="Wallet request statistics">
@@ -1451,6 +1470,20 @@ function AdminDashboardPage({ setPage }) {
             getVendorTransactionRecords={getVendorTransactionRecords}
           />
         )}
+      {dashboardModal && (
+        <DashboardDetailsModal
+          type={dashboardModal}
+          students={students}
+          vendors={vendors}
+          transactions={transactions}
+          selectedItem={selectedDashboardItem}
+          onSelect={setSelectedDashboardItem}
+          onBack={() => setSelectedDashboardItem(null)}
+          onClose={closeDashboardModal}
+          getVendorSales={getVendorSales}
+          getVendorTransactionsCount={getVendorTransactionsCount}
+        />
+      )}
       </main>
     </div>
   );
@@ -1565,6 +1598,8 @@ function DashboardDetailsModal({
                   ? setVendorTransactionTarget(selectedItem)
                   : setStudentTransactionTarget(selectedItem)
               }
+              totalTransactions={type === "vendors" ? getVendorTransactionsCount(selectedItem) : null}
+              onShowTransactions={() => setStudentTransactionTarget(selectedItem)}
             />
           ) : type === "transactions" ? (
             <TransactionDetailsList transactions={transactions} />
@@ -1610,6 +1645,19 @@ function DashboardDetailsModal({
 }
 
 function PersonDetails({ person, isVendor, totalSales, totalTransactions, onShowTransactions }) {
+function PersonDetails({ person, isVendor, totalSales, totalTransactions, allTransactions = [], onShowTransactions = () => {} }) {
+  const [showTxPanel, setShowTxPanel] = useState(false);
+
+  const studentTransactionCount = !isVendor
+    ? (allTransactions || []).filter((transaction) => {
+      const transactionStudentId = String(transaction.student?._id || transaction.student || "").toLowerCase();
+      const personId = String(person._id || "").toLowerCase();
+      const transactionStudentName = String(transaction.student?.name || "").toLowerCase();
+      const personName = String(person.name || "").toLowerCase();
+      return transactionStudentId === personId || transactionStudentName === personName;
+    }).length
+    : Number(totalTransactions || 0);
+
   const fields = [
     { label: "Name", value: person.name || "-" },
     { label: "Email", value: person.email || "-" },
@@ -2412,5 +2460,6 @@ function AdminIcon({ type }) {
     </svg>
   );
 }
+
 
 export default AdminDashboardPage;
