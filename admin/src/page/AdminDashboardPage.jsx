@@ -799,6 +799,12 @@ function AdminDashboardPage({ setPage }) {
     setDashboardModal(type);
   };
 
+  const navigateToView = (view) => {
+    setDashboardModal(null);
+    setSelectedDashboardItem(null);
+    setActiveView(view);
+  };
+
   const closeDashboardModal = () => {
     setDashboardModal(null);
     setSelectedDashboardItem(null);
@@ -833,7 +839,7 @@ function AdminDashboardPage({ setPage }) {
               className={activeView === view ? "active" : ""}
               key={view}
               type="button"
-              onClick={() => setActiveView(view)}
+              onClick={() => navigateToView(view)}
             >
               <AdminIcon type={icon} />
               {label}
@@ -997,7 +1003,7 @@ function AdminDashboardPage({ setPage }) {
                 <section className="admin-recent-section">
                   <div className="admin-section-title">
                     <h2>Recent Transactions</h2>
-                    <button type="button" onClick={() => setActiveView("transactions")}>View All</button>
+                    <button type="button" onClick={() => navigateToView("transactions")}>View All</button>
                   </div>
                   <AdminTable
                     columns={["Transaction ID", "Student", "Vendor", "Amount", "Status", "Time"]}
@@ -1080,7 +1086,7 @@ function AdminDashboardPage({ setPage }) {
                                 <button
                                   className="student-money-button"
                                   type="button"
-                                  onClick={() => setActiveView("wallet")}
+                                  onClick={() => navigateToView("wallet")}
                                 >
                                   <span>₹</span>
                                   Add Money
