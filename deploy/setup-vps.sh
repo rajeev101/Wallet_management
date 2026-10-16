@@ -6,6 +6,8 @@
 # ==============================================================================
 
 set -e
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
 
 echo "=========================================================="
 echo " Starting Hostinger VPS Deployment for Campus Wallet"
@@ -13,8 +15,8 @@ echo "=========================================================="
 
 # 1. Update system packages
 echo "==> Updating system packages..."
-apt-get update -y && apt-get upgrade -y
-apt-get install -y curl wget gnupg git build-essential nginx ufw
+apt-get update -y
+apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl wget gnupg git build-essential nginx ufw rsync
 
 # 2. Install Node.js 22 LTS
 echo "==> Installing Node.js LTS..."
@@ -123,9 +125,11 @@ ufw allow 80/tcp comment 'HTTP'
 ufw allow 443/tcp comment 'HTTPS'
 ufw --force enable
 
+SERVER_IP=$(curl -s https://api.ipify.org 2>/dev/null || hostname -I | awk '{print $1}')
+
 echo "=========================================================="
 echo " Deployment Complete!"
-echo " Client:   http://<YOUR_VPS_IP>/"
-echo " Admin:    http://<YOUR_VPS_IP>/admin"
-echo " API:      http://<YOUR_VPS_IP>/api/v1"
+echo " Client:   http://${SERVER_IP}/"
+echo " Admin:    http://${SERVER_IP}/admin"
+echo " API:      http://${SERVER_IP}/api/v1"
 echo "=========================================================="
