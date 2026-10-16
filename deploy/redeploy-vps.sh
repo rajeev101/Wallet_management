@@ -79,6 +79,7 @@ fi
 
 nginx -t
 systemctl reload nginx || systemctl restart nginx
+ufw allow 3001/tcp comment 'Admin UI' 2>/dev/null || true
 
 SERVER_IP=$(curl -s https://api.ipify.org 2>/dev/null || hostname -I | awk '{print $1}')
 

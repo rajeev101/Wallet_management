@@ -4,6 +4,13 @@ import AdminDashboardPage from "./page/AdminDashboardPage";
 import AdminLoginPage from "./page/AdminLoginPage";
 import AccessDeniedPage from "./page/AccessDeniedPage";
 
+const getPrefix = () => (window.location.pathname.startsWith("/admin") ? "/admin" : "");
+
+const getCleanPath = (pathname) => {
+  const withoutPrefix = pathname.replace(/^\/admin/, "");
+  return withoutPrefix || "/";
+};
+
 const pagePaths = {
   "admin-login": "/login",
   "admin-dashboard": "/dashboard",
@@ -17,7 +24,8 @@ const pathPages = Object.entries(pagePaths).reduce((acc, [page, path]) => {
 
 function App() {
   const [page, setPage] = useState(() => {
-    const pathPage = pathPages[window.location.pathname];
+    const cleanPath = getCleanPath(window.location.pathname);
+    const pathPage = pathPages[cleanPath];
     const token = localStorage.getItem("cpacToken");
     const accountType = localStorage.getItem("cpacUserType");
 
@@ -47,8 +55,8 @@ function App() {
       } else {
         window.location.href =
           accountType === "vendor"
-            ? "http://localhost:3000/vendor/dashboard"
-            : "http://localhost:3000/student/dashboard";
+            ? "/vendor/dashboard"
+            : "/student/dashboard";
         return;
       }
     }
@@ -61,13 +69,16 @@ function App() {
       }
     }
 
-    window.history.pushState({}, "", pagePaths[resolvedPage] || "/login");
+    const prefix = getPrefix();
+    const targetPath = pagePaths[resolvedPage] || "/login";
+    window.history.pushState({}, "", `${prefix}${targetPath}`);
     setPage(resolvedPage);
   };
 
   useEffect(() => {
     const handlePopState = () => {
-      setPage(pathPages[window.location.pathname] || "admin-login");
+      const cleanPath = getCleanPath(window.location.pathname);
+      setPage(pathPages[cleanPath] || "admin-login");
     };
 
     window.addEventListener("popstate", handlePopState);

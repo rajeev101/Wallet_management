@@ -92,7 +92,7 @@ function AdminLoginPage({ setPage }) {
               className="link-button"
               type="button"
               onClick={() => {
-                window.location.href = "http://localhost:3000/login";
+                window.location.href = "/login";
               }}
             >
               Use regular login
