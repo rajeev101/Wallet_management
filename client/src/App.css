@@ -2653,7 +2653,6 @@
   font-weight: 400;
 }
 
-<<<<<<< Updated upstream
 .vendor-brand button {
   display: grid;
   place-items: center;
@@ -2675,9 +2674,6 @@
   width: 1.2rem;
   height: 1.2rem;
 }
-
-=======
->>>>>>> Stashed changes
 .vendor-nav {
   display: grid;
   align-content: start;
@@ -4683,6 +4679,4 @@
     transform: scale(1);
     opacity: 1;
   }
-}
-
 }
