@@ -30,9 +30,11 @@ echo "==> Using project directory: $PROJECT_DIR"
 cd "$PROJECT_DIR"
 
 # 2. Fetch latest changes from GitHub master branch
-echo "==> Pulling latest changes from origin/master..."
-git fetch origin
+echo "==> Pulling latest changes from origin/master and clearing any conflict markers..."
+git fetch origin master
+git checkout -f master
 git reset --hard origin/master
+git clean -fd -e .env -e server/.env -e client/.env -e admin/.env
 
 # 3. Update server dependencies & restart PM2
 echo "==> Updating backend server..."
