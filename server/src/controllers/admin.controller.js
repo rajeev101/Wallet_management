@@ -73,15 +73,13 @@ exports.getDashboardStats = async (req, res) => {
       txSummary.totalMoneyAdded - txSummary.totalPayments + txSummary.totalRefunds
     );
 
-    const totalWalletBalance =
-      transactionSummary.length > 0
-        ? netTransactionBalance
-        : walletSummary[0]?.totalWalletBalance || 0;
+    // Total balance is strictly calculated based on transactions
+    const totalWalletBalance = netTransactionBalance;
 
     const averageWalletBalance =
       totalStudents > 0
         ? totalWalletBalance / totalStudents
-        : walletSummary[0]?.averageWalletBalance || 0;
+        : 0;
 
     res.status(200).json({
       success: true,
@@ -116,7 +114,8 @@ exports.getStudents = async (req, res) => {
     const wallets = await Wallet.find({ owner: { $in: studentIds } });
     const walletMap = {};
     wallets.forEach((w) => {
-      walletMap[w.owner.toString()] = w.balance;
+      const bal = Number(w.balance || 0);
+      walletMap[w.owner.toString()] = Number.isFinite(bal) && bal >= 0 && bal < 1e12 ? bal : 0;
     });
 
     const studentsWithBalance = students.map((s) => {
