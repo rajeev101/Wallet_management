@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import * as XLSX from "xlsx";
 import { getMyTransactions } from "../api/auth";
+
 import { Icon } from "./StudentIcon";
 import StudentHeader from "./StudentHeader";
+import formatStudentAmount from "./studentAmountFormatter";
 
 const transactionFilterOptions = [
   { label: "Last 7 Days", value: 7, unit: "days" },
@@ -112,6 +115,8 @@ function StudentTransactionsPage({ student, onLogout }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [rawTransactions, setRawTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(10);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("cpacToken");
@@ -136,15 +141,15 @@ function StudentTransactionsPage({ student, onLogout }) {
 
       let amountStr = "";
       if (isTopup) {
-        amountStr = `+₹${Number(t.amount || 0).toFixed(2)}`;
+        amountStr = formatStudentAmount(Number(t.amount || 0), { includeSign: true });
       } else if (isPayment) {
         if (t.student?._id === currentUserId || t.student === currentUserId) {
-          amountStr = `-₹${Number(t.amount || 0).toFixed(2)}`;
+          amountStr = formatStudentAmount(Number(t.amount || 0), { includeSign: true, negative: true });
         } else {
-          amountStr = `+₹${Number(t.amount || 0).toFixed(2)}`;
+          amountStr = formatStudentAmount(Number(t.amount || 0), { includeSign: true });
         }
       } else if (isRefund) {
-        amountStr = `+₹${Number(t.amount || 0).toFixed(2)}`;
+        amountStr = formatStudentAmount(Number(t.amount || 0), { includeSign: true });
       }
 
       let displayDesc = "";
@@ -190,11 +195,38 @@ function StudentTransactionsPage({ student, onLogout }) {
       return dateFilteredTransactions;
     }
 
-
     return dateFilteredTransactions.filter((transaction) =>
       transaction.id.toLowerCase().includes(normalizedQuery)
     );
   }, [dateFilteredTransactions, searchQuery]);
+
+  const displayedTransactions = useMemo(
+    () => visibleTransactions.slice(0, visibleCount),
+    [visibleTransactions, visibleCount]
+  );
+
+  useEffect(() => {
+    setVisibleCount(10);
+  }, [searchQuery, selectedFilter]);
+
+  const handleLoadMoreTransactions = () => {
+    if (loadingMore || visibleCount >= visibleTransactions.length) {
+      return;
+    }
+
+    setLoadingMore(true);
+    window.setTimeout(() => {
+      setVisibleCount((count) => Math.min(count + 10, visibleTransactions.length));
+      setLoadingMore(false);
+    }, 200);
+  };
+
+  const handleHistoryScroll = (event) => {
+    const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight <= 20) {
+      handleLoadMoreTransactions();
+    }
+  };
 
   const handleFilterSelect = (option) => {
     setSelectedFilter(option);
@@ -202,12 +234,61 @@ function StudentTransactionsPage({ student, onLogout }) {
   };
 
   const handleExport = () => {
-    const rangeLabel = selectedFilter?.label || "All Transactions";
-    const rows = dateFilteredTransactions.length
-      ? getTransactionPdfRows(dateFilteredTransactions)
-      : ["No transactions found for selected period."];
-    const blob = createPdfBlob(`Transaction History - ${rangeLabel}`, rows);
-    downloadBlob(blob, `transactions-${rangeLabel.toLowerCase().replaceAll(" ", "-")}.pdf`);
+    if (!dateFilteredTransactions.length) {
+      return;
+    }
+
+    const rows = dateFilteredTransactions.map((transaction) => {
+      const rawTransaction = rawTransactions.find((item) => item._id === transaction.id) || {};
+      const createdAt = rawTransaction.createdAt ? new Date(rawTransaction.createdAt) : new Date(`${transaction.date} ${transaction.time}`);
+
+      return {
+        Date: createdAt.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }),
+        Time: createdAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+        "Transaction ID": transaction.id,
+        "Transaction Type": rawTransaction.type || "",
+        Amount: Number(rawTransaction.amount ?? 0),
+        Status: rawTransaction.status ? rawTransaction.status.charAt(0).toUpperCase() + rawTransaction.status.slice(1) : transaction.status,
+        Description: rawTransaction.description || transaction.vendor || "",
+        "Vendor/Student": rawTransaction.vendor?.name || rawTransaction.student?.name || transaction.vendor || "",
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    worksheet["!cols"] = [
+      { wch: 18 },
+      { wch: 16 },
+      { wch: 28 },
+      { wch: 18 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 30 },
+      { wch: 26 },
+    ];
+
+    const headerStyle = {
+      font: { bold: true },
+      alignment: { horizontal: "center", vertical: "center" },
+      fill: { fgColor: { rgb: "EAF2F8" } },
+      border: {
+        top: { style: "thin" },
+        right: { style: "thin" },
+        bottom: { style: "thin" },
+        left: { style: "thin" },
+      },
+    };
+
+    ["A1", "B1", "C1", "D1", "E1", "F1", "G1", "H1"].forEach((cell) => {
+      if (worksheet[cell]) {
+        worksheet[cell].s = headerStyle;
+      }
+    });
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Transactions");
+
+    const fileName = `transactions-${(selectedFilter?.label || "all").toLowerCase().replaceAll(" ", "-")}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
   };
 
   const handleReceiptDownload = (transaction) => {
@@ -221,12 +302,6 @@ function StudentTransactionsPage({ student, onLogout }) {
 
   return (
     <section className="transaction-history-view" aria-label="Transaction history">
-      <StudentHeader
-        title="Transaction History"
-        student={student}
-        onLogout={onLogout}
-      />
-
       <div className="history-tools">
         <form className="history-search" onSubmit={(event) => event.preventDefault()}>
           <Icon type="search" />
@@ -270,7 +345,7 @@ function StudentTransactionsPage({ student, onLogout }) {
         </button>
       </div>
 
-      <div className="history-table">
+      <div className="history-table" onScroll={handleHistoryScroll}>
         <table>
           <thead>
             <tr>
@@ -289,8 +364,8 @@ function StudentTransactionsPage({ student, onLogout }) {
                   Loading transactions...
                 </td>
               </tr>
-            ) : visibleTransactions.length ? (
-              visibleTransactions.map((transaction) => (
+            ) : displayedTransactions.length ? (
+              displayedTransactions.map((transaction) => (
                 <tr key={transaction.id}>
                   <td>{transaction.id}</td>
                   <td>{transaction.vendor}</td>
@@ -320,6 +395,13 @@ function StudentTransactionsPage({ student, onLogout }) {
               <tr>
                 <td className="history-empty-message" colSpan="6">
                   {emptyMessage}
+                </td>
+              </tr>
+            )}
+            {loadingMore && (
+              <tr>
+                <td className="history-empty-message" colSpan="6" style={{ textAlign: "center", color: "#7c8497", padding: "16px 0" }}>
+                  Loading more transactions...
                 </td>
               </tr>
             )}

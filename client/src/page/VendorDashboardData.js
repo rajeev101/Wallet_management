@@ -38,9 +38,9 @@ export const vendorTransactions = [
 ];
 
 export const vendorPageCopy = {
-  dashboard: ["Vendor Dashboard", "Vendor sales and QR code management"],
-  qr: ["Vendor QR Code", "Generate and manage payment QR codes"],
-  transactions: ["Vendor Transactions", "Review customer payments"],
-  profile: ["Vendor Profile", "Manage vendor profile details"],
-  settings: ["Vendor Profile", "Manage vendor profile details"],
+  dashboard: ["Vendor Dashboard", "Manage your store and payments"],
+  qr: ["QR Code", "Receive quick payments"],
+  transactions: ["Transaction", "View your transactions"],
+  profile: ["Profile", "Manage your profile"],
+  settings: ["Profile", "Manage your profile"],
 };
