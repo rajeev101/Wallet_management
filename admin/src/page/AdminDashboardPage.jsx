@@ -412,9 +412,11 @@ function AdminDashboardPage({ setPage }) {
     return () => window.clearTimeout(timer);
   }, [error]);
 
-  const loadAdminData = useCallback(async (query = "") => {
-    setIsLoading(true);
-    setError({ text: "", view: "" });
+  const loadAdminData = useCallback(async (query = "", showLoading = true) => {
+    if (showLoading) {
+      setIsLoading(true);
+      setError({ text: "", view: "" });
+    }
 
     try {
       const [statsData, studentsData, vendorsData, transactionsData, walletRequestsData] = await Promise.all([
@@ -444,19 +446,21 @@ function AdminDashboardPage({ setPage }) {
       });
       setWalletRequests(formattedRequests);
     } catch (loadError) {
-      showError(loadError.message);
+      if (showLoading) showError(loadError.message);
     } finally {
-      setIsLoading(false);
+      if (showLoading) setIsLoading(false);
     }
   }, [showError]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      loadAdminData("");
-    }, 0);
+    loadAdminData("");
 
-    return () => window.clearTimeout(timer);
-  }, [loadAdminData]);
+    const interval = window.setInterval(() => {
+      loadAdminData(search, false);
+    }, 6000);
+
+    return () => window.clearInterval(interval);
+  }, [loadAdminData, search]);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -638,11 +642,29 @@ function AdminDashboardPage({ setPage }) {
     year: "numeric",
   });
 
+  const dynamicTransactionBalance = transactions.reduce((acc, txn) => {
+    if (txn.status !== "completed") return acc;
+    const amt = Number(txn.amount || 0);
+    if (txn.type === "wallet_topup" || txn.type === "refund") {
+      return acc + amt;
+    }
+    if (txn.type === "payment") {
+      return acc - amt;
+    }
+    return acc;
+  }, 0);
+
+  const studentTotalBalance = students.reduce(
+    (total, student) => total + Number(student.walletBalance || 0),
+    0
+  );
+  const actualTotalBalance = stats?.totalWalletBalance ?? (transactions.length ? Math.max(0, dynamicTransactionBalance) : studentTotalBalance);
+
   const statCards = [
     {
       type: "students",
       label: "Total Students",
-      value: formatNumber(stats?.totalStudents),
+      value: formatNumber(stats?.totalStudents ?? students.length),
       trend: "12% vs last month",
       icon: "students",
       tone: "blue",
@@ -650,7 +672,7 @@ function AdminDashboardPage({ setPage }) {
     {
       type: "vendors",
       label: "Total Vendors",
-      value: formatNumber(stats?.totalVendors),
+      value: formatNumber(stats?.totalVendors ?? vendors.length),
       trend: "5% vs last month",
       icon: "store",
       tone: "cyan",
@@ -658,7 +680,7 @@ function AdminDashboardPage({ setPage }) {
     {
       type: "transactions",
       label: "Total Transactions",
-      value: formatNumber(stats?.totalTransactions),
+      value: formatNumber(stats?.totalTransactions ?? transactions.length),
       trend: "18% vs last month",
       icon: "swap",
       tone: "plain",
@@ -666,7 +688,7 @@ function AdminDashboardPage({ setPage }) {
     {
       type: "wallet",
       label: "Total Wallet Balance",
-      value: formatMoney(stats?.totalWalletBalance),
+      value: formatMoney(actualTotalBalance),
       trend: "8% vs last month",
       icon: "wallet",
       tone: "plain",
@@ -707,11 +729,6 @@ function AdminDashboardPage({ setPage }) {
     ].some((value) => String(value || "").toLowerCase().includes(query));
   });
 
-  const studentTotalBalance = students.reduce(
-    (total, student) => total + Number(student.walletBalance || 0),
-    0
-  );
-  const actualTotalBalance = stats?.totalWalletBalance ?? studentTotalBalance;
   const averageStudentBalance = students.length
     ? actualTotalBalance / students.length
     : (stats?.averageWalletBalance ?? 0);
@@ -1915,26 +1932,28 @@ function StudentTransactionPanel({ student, transactions }) {
     const fieldName = fieldNames.find((name) => transaction[name] !== undefined && transaction[name] !== null);
     return fieldName ? Number(transaction[fieldName]) : null;
   };
-  const balanceSeed = chronologicalTransactions.reduce((balance, transaction) => {
-    const amount = Number(transaction.amount || 0);
-    const isCredit = transaction.type === "wallet_topup" || transaction.type === "refund";
-    return isCredit ? balance - amount : balance + amount;
-  }, Number(student?.walletBalance || 0));
   const transactionBalances = chronologicalTransactions.reduce(
     (accumulator, transaction) => {
       const transactionId = transaction._id || transaction.id;
       const amount = Number(transaction.amount || 0);
+      const isCompleted = transaction.status === "completed" || !transaction.status;
       const isCredit = transaction.type === "wallet_topup" || transaction.type === "refund";
       const storedTotalBalance = getStoredBalance(transaction, balanceFieldNames.total);
       const storedInitialBalance = getStoredBalance(transaction, balanceFieldNames.initial);
       const initialBalance = storedInitialBalance ?? accumulator.runningBalance;
-      const totalBalance = storedTotalBalance ?? (isCredit ? initialBalance + amount : initialBalance - amount);
+      const totalBalance = storedTotalBalance ?? (
+        isCompleted
+          ? (isCredit ? initialBalance + amount : Math.max(0, initialBalance - amount))
+          : initialBalance
+      );
 
       accumulator.byId[String(transactionId)] = { initialBalance, totalBalance };
-      accumulator.runningBalance = totalBalance;
+      if (isCompleted) {
+        accumulator.runningBalance = totalBalance;
+      }
       return accumulator;
     },
-    { byId: {}, runningBalance: balanceSeed }
+    { byId: {}, runningBalance: 0 }
   ).byId;
 
   const summary = studentTransactions.reduce(

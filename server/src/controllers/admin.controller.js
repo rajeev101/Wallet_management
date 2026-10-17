@@ -21,11 +21,34 @@ const getSearchFilter = (search) => {
 
 exports.getDashboardStats = async (req, res) => {
   try {
-    const [totalStudents, totalVendors, totalTransactions, walletSummary] =
+    const [totalStudents, totalVendors, totalTransactions, transactionSummary, walletSummary] =
       await Promise.all([
         User.countDocuments({ accountType: "student" }),
         User.countDocuments({ accountType: "vendor" }),
         Transaction.countDocuments(),
+        Transaction.aggregate([
+          { $match: { status: "completed" } },
+          {
+            $group: {
+              _id: null,
+              totalMoneyAdded: {
+                $sum: {
+                  $cond: [{ $eq: ["$type", "wallet_topup"] }, "$amount", 0],
+                },
+              },
+              totalPayments: {
+                $sum: {
+                  $cond: [{ $eq: ["$type", "payment"] }, "$amount", 0],
+                },
+              },
+              totalRefunds: {
+                $sum: {
+                  $cond: [{ $eq: ["$type", "refund"] }, "$amount", 0],
+                },
+              },
+            },
+          },
+        ]),
         Wallet.aggregate([
           { $match: { ownerType: "student" } },
           {
@@ -38,14 +61,38 @@ exports.getDashboardStats = async (req, res) => {
         ]),
       ]);
 
+    const txSummary = transactionSummary[0] || {
+      totalMoneyAdded: 0,
+      totalPayments: 0,
+      totalRefunds: 0,
+    };
+
+    // Calculate dynamically from completed transactions: (Total Added - Total Payments + Total Refunds)
+    const netTransactionBalance = Math.max(
+      0,
+      txSummary.totalMoneyAdded - txSummary.totalPayments + txSummary.totalRefunds
+    );
+
+    const totalWalletBalance =
+      transactionSummary.length > 0
+        ? netTransactionBalance
+        : walletSummary[0]?.totalWalletBalance || 0;
+
+    const averageWalletBalance =
+      totalStudents > 0
+        ? totalWalletBalance / totalStudents
+        : walletSummary[0]?.averageWalletBalance || 0;
+
     res.status(200).json({
       success: true,
       stats: {
         totalStudents,
         totalVendors,
         totalTransactions,
-        totalWalletBalance: walletSummary[0]?.totalWalletBalance || 0,
-        averageWalletBalance: walletSummary[0]?.averageWalletBalance || 0,
+        totalWalletBalance,
+        averageWalletBalance,
+        totalMoneyAdded: txSummary.totalMoneyAdded,
+        totalPayments: txSummary.totalPayments,
       },
     });
   } catch (error) {
