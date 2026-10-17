@@ -528,48 +528,60 @@ function StudentDashboardPage({ setPage }) {
 
       <div className="student-shell">
         <aside className="student-sidebar">
-          <nav className="student-nav" aria-label="Student dashboard navigation">
-            <button
-              className={activeView === "dashboard" ? "active" : ""}
-              type="button"
-              onClick={showDashboard}
-            >
-              <Icon type="dashboard" />
-              Dashboard
-            </button>
-            <button
-              className={activeView === "scan" ? "active" : ""}
-              type="button"
-              onClick={showScanner}
-            >
-              <Icon type="wallet" />
-              Scan to Pay
-            </button>
-            <button
-              className={activeView === "transactions" ? "active" : ""}
-              type="button"
-              onClick={showTransactions}
-            >
-              <Icon type="swap" />
-              Transactions
-            </button>
-            <button
-              className={activeView === "addMoney" ? "active" : ""}
-              type="button"
-              onClick={showAddMoney}
-            >
-              <Icon type="wallet" />
-              Add Money
-            </button>
-            <button
-              className={activeView === "profile" ? "active" : ""}
-              type="button"
-              onClick={showProfile}
-            >
-              <Icon type="settings" />
-              Profile
-            </button>
-          </nav>
+          <div>
+            <div className="student-brand">
+              <span className="student-brand-icon">
+                <Icon type="wallet" />
+              </span>
+              <div>
+                <strong>Campus Wallet</strong>
+                <span>Student Panel</span>
+              </div>
+            </div>
+
+            <nav className="student-nav" aria-label="Student dashboard navigation">
+              <button
+                className={activeView === "dashboard" ? "active" : ""}
+                type="button"
+                onClick={showDashboard}
+              >
+                <Icon type="dashboard" />
+                Dashboard
+              </button>
+              <button
+                className={activeView === "scan" ? "active" : ""}
+                type="button"
+                onClick={showScanner}
+              >
+                <Icon type="wallet" />
+                Scan to Pay
+              </button>
+              <button
+                className={activeView === "transactions" ? "active" : ""}
+                type="button"
+                onClick={showTransactions}
+              >
+                <Icon type="swap" />
+                Transactions
+              </button>
+              <button
+                className={activeView === "addMoney" ? "active" : ""}
+                type="button"
+                onClick={showAddMoney}
+              >
+                <Icon type="wallet" />
+                Add Money
+              </button>
+              <button
+                className={activeView === "profile" ? "active" : ""}
+                type="button"
+                onClick={showProfile}
+              >
+                <Icon type="settings" />
+                Profile
+              </button>
+            </nav>
+          </div>
 
           <button className="student-logout" type="button" onClick={handleExit}>
             <Icon type="logout" />

@@ -11,9 +11,6 @@ function VendorSidebar({ activeView, onChangeView, onLogout }) {
           <strong>Campus Wallet</strong>
           <span>Vendor Panel</span>
         </div>
-        <button type="button" aria-label="Collapse sidebar">
-          <Icon type="chevronLeft" />
-        </button>
       </div>
 
       <nav className="vendor-nav" aria-label="Vendor dashboard navigation">

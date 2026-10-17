@@ -182,8 +182,6 @@ function StudentProfilePage({ initialStudent, onProfileChange, onLogout }) {
       const data = await updateProfile(
         {
           name: profile.name.trim(),
-          email: profile.email.trim(),
-          phone: profile.phone.trim(),
           profilePicture: profile.photo,
         },
         token
@@ -363,28 +361,34 @@ function StudentProfilePage({ initialStudent, onProfileChange, onLogout }) {
             </div>
 
             <label htmlFor="studentEmail">Email Address</label>
-            <div className="profile-input">
+            <div className="profile-input profile-input-locked">
               <input
                 id="studentEmail"
                 name="email"
                 type="email"
                 value={profile.email}
-                onChange={handleChange}
                 placeholder="Enter email address"
                 autoComplete="email"
+                disabled
+                readOnly
+                tabIndex={-1}
+                aria-readonly="true"
               />
             </div>
 
             <label htmlFor="studentPhone">Phone Number</label>
-            <div className="profile-input">
+            <div className="profile-input profile-input-locked">
               <input
                 id="studentPhone"
                 name="phone"
                 type="tel"
                 value={profile.phone}
-                onChange={handleChange}
                 placeholder="Enter phone number"
                 autoComplete="tel"
+                disabled
+                readOnly
+                tabIndex={-1}
+                aria-readonly="true"
               />
             </div>
 

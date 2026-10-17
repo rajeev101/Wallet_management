@@ -5,7 +5,7 @@ import { useState } from "react";
 import { signupUser } from "../../api/auth";
 
 function RegisterForm({ setPage }) {
-  const [accountType, setAccountType] = useState("student");
+  const [accountType, setAccountType] = useState("");
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -25,6 +25,11 @@ function RegisterForm({ setPage }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setStatus("");
+
+    if (!accountType) {
+      setStatus("Please select an account type.");
+      return;
+    }
 
     if (form.password !== form.confirmPassword) {
       setStatus("Password and confirm password do not match.");
@@ -56,7 +61,7 @@ function RegisterForm({ setPage }) {
       <InputField
         label="Full Name"
         name="name"
-        placeholder="John Doe"
+        placeholder="Enter your full name"
         value={form.name}
         onChange={handleChange}
         autoComplete="name"
@@ -66,7 +71,7 @@ function RegisterForm({ setPage }) {
         label="Email Address"
         name="email"
         type="email"
-        placeholder="student@university.edu"
+        placeholder="Enter your email address"
         value={form.email}
         onChange={handleChange}
         autoComplete="email"
