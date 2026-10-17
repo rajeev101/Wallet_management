@@ -707,16 +707,18 @@ function AdminDashboardPage({ setPage }) {
     ].some((value) => String(value || "").toLowerCase().includes(query));
   });
 
-  const studentTotalBalance = students.length
-    ? students.reduce((total, student) => total + Number(student.walletBalance || 0), 0)
-    : 125420;
-  const averageStudentBalance = visibleStudents.length
-    ? studentTotalBalance / visibleStudents.length
-    : 0;
+  const studentTotalBalance = students.reduce(
+    (total, student) => total + Number(student.walletBalance || 0),
+    0
+  );
+  const actualTotalBalance = stats?.totalWalletBalance ?? studentTotalBalance;
+  const averageStudentBalance = students.length
+    ? actualTotalBalance / students.length
+    : (stats?.averageWalletBalance ?? 0);
   const studentStats = [
-    ["Total Students", formatNumber(stats?.totalStudents || visibleStudents.length)],
-    ["Active Users", formatNumber(stats?.totalStudents || visibleStudents.length), "green"],
-    ["Total Balance", formatMoney(stats?.totalWalletBalance || studentTotalBalance)],
+    ["Total Students", formatNumber(stats?.totalStudents ?? students.length)],
+    ["Active Users", formatNumber(stats?.totalStudents ?? students.length), "green"],
+    ["Total Balance", formatMoney(actualTotalBalance)],
     ["Avg. Balance", `₹${averageStudentBalance.toFixed(2)}`],
   ];
   const visibleVendors = vendors.length ? vendors : fallbackVendors;
