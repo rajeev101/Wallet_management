@@ -57,7 +57,7 @@ function ForgotPassword({ setPage, setForgotPasswordEmail }) {
         label="Email Address"
         name="email"
         type="email"
-        placeholder="student@university.edu"
+        placeholder="Enter your email address"
         value={email}
         onChange={handleChange}
         autoComplete="email"

@@ -196,8 +196,6 @@ function VendorSettingsPage({ vendor, onProfileChange }) {
       const data = await updateProfile(
         {
           name: form.name.trim(),
-          email: form.email.trim(),
-          phone: form.phone.trim(),
           profilePicture: form.photo,
         },
         token
@@ -371,28 +369,33 @@ function VendorSettingsPage({ vendor, onProfileChange }) {
             </div>
 
             <label htmlFor="vendorEmail">Email Address</label>
-            <div className="vendor-profile-input">
+            <div className="vendor-profile-input vendor-profile-input-locked">
               <input
                 id="vendorEmail"
                 name="email"
                 type="email"
                 value={form.email}
-                onChange={handleChange}
                 placeholder="Enter email address"
-                required
+                disabled
+                readOnly
+                tabIndex={-1}
+                aria-readonly="true"
               />
             </div>
 
             <label htmlFor="vendorPhone">Phone Number</label>
-            <div className="vendor-profile-input">
+            <div className="vendor-profile-input vendor-profile-input-locked">
               <input
                 id="vendorPhone"
                 name="phone"
                 type="tel"
                 value={form.phone}
-                onChange={handleChange}
                 placeholder="Enter phone number"
                 autoComplete="tel"
+                disabled
+                readOnly
+                tabIndex={-1}
+                aria-readonly="true"
               />
             </div>
 

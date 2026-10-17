@@ -216,7 +216,7 @@ exports.getProfile = async (req, res) => {
 // UPDATE PROFILE
 exports.updateProfile = async (req, res) => {
   try {
-    const { name, email, phone, profilePicture } = req.body;
+    const { name, profilePicture } = req.body;
 
     const userId = req.user?.userId;
 
@@ -227,32 +227,74 @@ exports.updateProfile = async (req, res) => {
       });
     }
 
-    if (!name || !email) {
+    if (!name || !name.trim()) {
       return res.status(400).json({
         success: false,
-        message: "Name and email are required",
+        message: "Name is required",
       });
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
+    const currentUser = await User.findById(userId).select("email phone accountType");
 
-    const existingUser = await User.findOne({
-      email: normalizedEmail,
-      _id: { $ne: userId },
-    });
-
-    if (existingUser) {
-      return res.status(400).json({
+    if (!currentUser) {
+      return res.status(404).json({
         success: false,
-        message: "Email already exists",
+        message: "User not found",
       });
     }
+
+    const requestedEmail = req.body.email;
+    const requestedPhone = req.body.phone;
 
     const profileUpdates = {
       name: name.trim(),
-      email: normalizedEmail,
-      phone: phone?.trim() || "",
     };
+
+    if (["student", "vendor"].includes(currentUser.accountType)) {
+      if (
+        requestedEmail !== undefined &&
+        String(requestedEmail).toLowerCase().trim() !== currentUser.email
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Email address cannot be changed",
+        });
+      }
+
+      if (
+        requestedPhone !== undefined &&
+        String(requestedPhone).trim() !== (currentUser.phone || "")
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Phone number cannot be changed",
+        });
+      }
+    } else {
+      const normalizedEmail = requestedEmail?.toLowerCase().trim();
+
+      if (!normalizedEmail) {
+        return res.status(400).json({
+          success: false,
+          message: "Name and email are required",
+        });
+      }
+
+      const existingUser = await User.findOne({
+        email: normalizedEmail,
+        _id: { $ne: userId },
+      });
+
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: "Email already exists",
+        });
+      }
+
+      profileUpdates.email = normalizedEmail;
+      profileUpdates.phone = requestedPhone?.trim() || "";
+    }
 
     if (profilePicture !== undefined) {
       profileUpdates.profilePicture = profilePicture || "";

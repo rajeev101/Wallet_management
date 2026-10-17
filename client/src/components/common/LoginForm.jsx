@@ -52,7 +52,7 @@ function LoginForm({ setPage }) {
         label="Email Address"
         name="email"
         type="email"
-        placeholder="student@university.edu"
+        placeholder="Enter your email address"
         value={form.email}
         onChange={handleChange}
         autoComplete="email"
