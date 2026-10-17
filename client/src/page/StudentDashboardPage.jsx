@@ -3,8 +3,10 @@ import StudentAddMoneyPage from "./StudentAddMoneyPage";
 import StudentProfilePage from "./StudentProfilePage";
 import StudentScanPayPage from "./StudentScanPayPage";
 import StudentTransactionsPage from "./StudentTransactionsPage";
+import StudentHeader from "./StudentHeader";
 import { Icon } from "./StudentIcon";
 import { getProfile, getMyTransactions } from "../api/auth";
+import formatStudentAmount from "./studentAmountFormatter";
 
 const getStoredStudent = () => {
   try {
@@ -105,7 +107,7 @@ function StatDetailModal({ type, onClose }) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", background: "#f8f9fb", padding: "16px", borderRadius: "10px", marginBottom: "20px" }}>
             <div>
               <span style={{ fontSize: "0.8rem", color: "#7c8497", textTransform: "uppercase", fontWeight: "500", display: "block" }}>Total Monthly Spend</span>
-              <strong style={{ fontSize: "1.5rem", color: "#1a1d2e", fontWeight: "600" }}>₹{totalSpend.toFixed(2)}</strong>
+              <strong style={{ fontSize: "1.5rem", color: "#1a1d2e", fontWeight: "600" }}>{formatStudentAmount(totalSpend)}</strong>
             </div>
             <div>
               <span style={{ fontSize: "0.8rem", color: "#7c8497", textTransform: "uppercase", fontWeight: "500", display: "block" }}>Transactions</span>
@@ -143,7 +145,7 @@ function StatDetailModal({ type, onClose }) {
                           <span style={{ display: "block", fontSize: "0.75rem", color: "#9ca3b4", marginTop: "2px" }}>{timeStr}</span>
                         </td>
                         <td style={{ padding: "12px 14px", color: "#1a1d2e", fontWeight: "500" }}>{t.vendor?.name || "Campus Vendor"}</td>
-                        <td style={{ padding: "12px 14px", color: "#ef4444", fontWeight: "600" }}>-₹{Number(t.amount || 0).toFixed(2)}</td>
+                        <td style={{ padding: "12px 14px", color: "#ef4444", fontWeight: "600" }}>{formatStudentAmount(Number(t.amount || 0), { includeSign: true, negative: true })}</td>
                         <td style={{ padding: "12px 14px", color: "#7c8497", fontSize: "0.75rem" }}>{t._id}</td>
                         <td style={{ padding: "12px 14px" }}>
                           <span style={{ 
@@ -177,7 +179,7 @@ function StatDetailModal({ type, onClose }) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", background: "#f8f9fb", padding: "16px", borderRadius: "10px", marginBottom: "20px" }}>
             <div>
               <span style={{ fontSize: "0.8rem", color: "#7c8497", textTransform: "uppercase", fontWeight: "500", display: "block" }}>Total Added This Month</span>
-              <strong style={{ fontSize: "1.5rem", color: "#1a1d2e", fontWeight: "600" }}>₹{totalAdded.toFixed(2)}</strong>
+              <strong style={{ fontSize: "1.5rem", color: "#1a1d2e", fontWeight: "600" }}>{formatStudentAmount(totalAdded)}</strong>
             </div>
             <div>
               <span style={{ fontSize: "0.8rem", color: "#7c8497", textTransform: "uppercase", fontWeight: "500", display: "block" }}>Top-ups</span>
@@ -214,7 +216,7 @@ function StatDetailModal({ type, onClose }) {
                           {dateStr}
                           <span style={{ display: "block", fontSize: "0.75rem", color: "#9ca3b4", marginTop: "2px" }}>{timeStr}</span>
                         </td>
-                        <td style={{ padding: "12px 14px", color: "#10b981", fontWeight: "600" }}>+₹{Number(t.amount || 0).toFixed(2)}</td>
+                        <td style={{ padding: "12px 14px", color: "#10b981", fontWeight: "600" }}>{formatStudentAmount(Number(t.amount || 0), { includeSign: true })}</td>
                         <td style={{ padding: "12px 14px", color: "#374151" }}>{getAddedBy(t)}</td>
                         <td style={{ padding: "12px 14px", color: "#7c8497", fontSize: "0.75rem" }}>{t._id}</td>
                         <td style={{ padding: "12px 14px" }}>
@@ -253,11 +255,11 @@ function StatDetailModal({ type, onClose }) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", background: "#f8f9fb", padding: "16px", borderRadius: "10px", marginBottom: "20px" }}>
             <div style={{ gridColumn: "1 / -1" }}>
               <span style={{ fontSize: "0.8rem", color: "#7c8497", textTransform: "uppercase", fontWeight: "500", display: "block" }}>Average Transaction Amount</span>
-              <strong style={{ fontSize: "1.75rem", color: "#6366f1", fontWeight: "600" }}>₹{avgSpend.toFixed(2)}</strong>
+              <strong style={{ fontSize: "1.75rem", color: "#6366f1", fontWeight: "600" }}>{formatStudentAmount(avgSpend)}</strong>
             </div>
             <div>
               <span style={{ fontSize: "0.8rem", color: "#7c8497", textTransform: "uppercase", fontWeight: "500", display: "block" }}>Total Spend</span>
-              <strong style={{ fontSize: "1.2rem", color: "#1a1d2e", fontWeight: "600" }}>₹{totalSpend.toFixed(2)}</strong>
+              <strong style={{ fontSize: "1.2rem", color: "#1a1d2e", fontWeight: "600" }}>{formatStudentAmount(totalSpend)}</strong>
             </div>
             <div>
               <span style={{ fontSize: "0.8rem", color: "#7c8497", textTransform: "uppercase", fontWeight: "500", display: "block" }}>Total Transactions</span>
@@ -265,11 +267,11 @@ function StatDetailModal({ type, onClose }) {
             </div>
             <div>
               <span style={{ fontSize: "0.8rem", color: "#7c8497", textTransform: "uppercase", fontWeight: "500", display: "block" }}>Highest Transaction</span>
-              <strong style={{ fontSize: "1.2rem", color: "#10b981", fontWeight: "600" }}>₹{highest.toFixed(2)}</strong>
+              <strong style={{ fontSize: "1.2rem", color: "#10b981", fontWeight: "600" }}>{formatStudentAmount(highest)}</strong>
             </div>
             <div>
               <span style={{ fontSize: "0.8rem", color: "#7c8497", textTransform: "uppercase", fontWeight: "500", display: "block" }}>Lowest Transaction</span>
-              <strong style={{ fontSize: "1.2rem", color: "#ef4444", fontWeight: "600" }}>₹{lowest.toFixed(2)}</strong>
+              <strong style={{ fontSize: "1.2rem", color: "#ef4444", fontWeight: "600" }}>{formatStudentAmount(lowest)}</strong>
             </div>
           </div>
 
@@ -302,7 +304,7 @@ function StatDetailModal({ type, onClose }) {
                           <span style={{ display: "block", fontSize: "0.75rem", color: "#9ca3b4", marginTop: "2px" }}>{timeStr}</span>
                         </td>
                         <td style={{ padding: "12px 14px", color: "#1a1d2e", fontWeight: "500" }}>{t.vendor?.name || "Campus Vendor"}</td>
-                        <td style={{ padding: "12px 14px", color: "#ef4444", fontWeight: "600" }}>-₹{Number(t.amount || 0).toFixed(2)}</td>
+                        <td style={{ padding: "12px 14px", color: "#ef4444", fontWeight: "600" }}>{formatStudentAmount(Number(t.amount || 0), { includeSign: true, negative: true })}</td>
                         <td style={{ padding: "12px 14px", color: "#7c8497", fontSize: "0.75rem" }}>{t._id}</td>
                       </tr>
                     );
@@ -324,54 +326,45 @@ function StatDetailModal({ type, onClose }) {
   };
 
   return (
-    <div 
+    <div
       style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(15, 22, 41, 0.65)",
-        backdropFilter: "blur(4px)",
         display: "flex",
-        alignItems: "stretch",
-        justifyContent: "stretch",
-        zIndex: 1000,
-        padding: 0,
+        flexDirection: "column",
+        width: "100%",
+        height: "100%",
+        background: "#ffffff",
+        borderRadius: "12px",
+        border: "1px solid rgba(0, 0, 0, 0.06)",
+        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.04)",
         overflow: "hidden"
       }}
       onClick={onClose}
     >
-      <div 
+      <div
         style={{
-          background: "#ffffff",
-          width: "100%",
-          height: "100%",
-          borderRadius: 0,
-          padding: "24px",
-          boxShadow: "none",
           display: "flex",
-          flexDirection: "column",
-          maxHeight: "100vh",
-          border: "none",
-          boxSizing: "border-box"
+          justifyContent: "space-between",
+          alignItems: "center",
+          borderBottom: "1px solid rgba(0,0,0,0.06)",
+          padding: "20px 24px",
+          background: "#ffffff",
+          position: "sticky",
+          top: 0,
+          zIndex: 5
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(0,0,0,0.06)", paddingBottom: "16px", marginBottom: "16px" }}>
-          <h2 style={{ fontSize: "1.15rem", fontWeight: "600", color: "#1a1d2e", margin: 0 }}>{getTitle()}</h2>
-          <button 
-            onClick={onClose} 
-            style={{ border: 0, background: "transparent", fontSize: "1.5rem", cursor: "pointer", color: "#7c8497", padding: "0 4px", display: "flex", alignItems: "center" }}
-            type="button"
-          >
-            &times;
-          </button>
-
-        </div>
-        <div style={{ overflowY: "auto", flex: 1, paddingRight: "4px" }}>
-          {renderContent()}
-        </div>
+        <h2 style={{ fontSize: "1.15rem", fontWeight: "600", color: "#1a1d2e", margin: 0 }}>{getTitle()}</h2>
+        <button
+          onClick={onClose}
+          style={{ border: 0, background: "transparent", fontSize: "1.5rem", cursor: "pointer", color: "#7c8497", padding: "0 4px", display: "flex", alignItems: "center" }}
+          type="button"
+        >
+          &times;
+        </button>
+      </div>
+      <div style={{ overflowY: "auto", flex: 1, padding: "24px", maxHeight: "calc(100vh - 80px - 80px)" }}>
+        {renderContent()}
       </div>
     </div>
   );
@@ -423,6 +416,12 @@ function StudentDashboardPage({ setPage }) {
     fetchRecentTransactions();
   }, [activeView]);
 
+  useEffect(() => {
+    if (activeView !== "dashboard" && activeModal) {
+      setActiveModal(null);
+    }
+  }, [activeView, activeModal]);
+
   const formattedTransactions = rawTransactions.slice(0, 5).map((t) => {
     const isTopup = t.type === "wallet_topup";
 
@@ -434,15 +433,15 @@ function StudentDashboardPage({ setPage }) {
 
     let amountStr = "";
     if (isTopup) {
-      amountStr = `+₹${Number(t.amount || 0).toFixed(2)}`;
+      amountStr = formatStudentAmount(Number(t.amount || 0), { includeSign: true });
     } else if (isPayment) {
       if (t.student?._id === currentUserId || t.student === currentUserId) {
-        amountStr = `-₹${Number(t.amount || 0).toFixed(2)}`;
+        amountStr = formatStudentAmount(Number(t.amount || 0), { includeSign: true, negative: true });
       } else {
-        amountStr = `+₹${Number(t.amount || 0).toFixed(2)}`;
+        amountStr = formatStudentAmount(Number(t.amount || 0), { includeSign: true });
       }
     } else if (isRefund) {
-      amountStr = `+₹${Number(t.amount || 0).toFixed(2)}`;
+      amountStr = formatStudentAmount(Number(t.amount || 0), { includeSign: true });
     }
 
     let displayDesc = "";
@@ -522,8 +521,11 @@ function StudentDashboardPage({ setPage }) {
   return (
     <div className="student-dashboard-page">
       <header className="student-topbar">
-        <h1>{pageTitle}</h1>
-        <p>{pageSubtitle}</p>
+        <div>
+          <h1>{pageTitle}</h1>
+          <p>{pageSubtitle}</p>
+        </div>
+        <StudentHeader student={student} onLogout={handleExit} rightOnly />
       </header>
 
       <div className="student-shell">
@@ -578,12 +580,12 @@ function StudentDashboardPage({ setPage }) {
         </aside>
 
         <main className={activeView === "profile" ? "student-content student-profile-content" : "student-content"}>
-          {activeView === "dashboard" && (
+          {activeView === "dashboard" && !activeModal && (
             <>
               <section className="balance-panel" aria-label="Wallet balance">
                 <div>
                   <p>Available Balance</p>
-                  <strong>₹{Number(student.walletBalance || 0).toFixed(2)}</strong>
+                  <strong>{formatStudentAmount(Number(student.walletBalance || 0))}</strong>
                 </div>
                 <Icon type="wallet" />
                 <div className="balance-actions">
@@ -606,7 +608,7 @@ function StudentDashboardPage({ setPage }) {
                 >
                   <div>
                     <p>This Month Spent</p>
-                    <strong>₹{totalSpent.toFixed(2)}</strong>
+                    <strong>{formatStudentAmount(totalSpent)}</strong>
                     <span>{spentCount} transactions</span>
                   </div>
                   <span className="stat-icon spent"><Icon type="up" /></span>
@@ -618,7 +620,7 @@ function StudentDashboardPage({ setPage }) {
                 >
                   <div>
                     <p>Added This Month</p>
-                    <strong>₹{totalAdded.toFixed(2)}</strong>
+                    <strong>{formatStudentAmount(totalAdded)}</strong>
                     <span>{addedCount} recharges</span>
                   </div>
                   <span className="stat-icon added"><Icon type="down" /></span>
@@ -630,7 +632,7 @@ function StudentDashboardPage({ setPage }) {
                 >
                   <div>
                     <p>Avg. Transaction</p>
-                    <strong>₹{avgTransaction.toFixed(2)}</strong>
+                    <strong>{formatStudentAmount(avgTransaction)}</strong>
                     <span>This month</span>
                   </div>
                   <span className="stat-icon average"><Icon type="clock" /></span>
@@ -705,11 +707,13 @@ function StudentDashboardPage({ setPage }) {
             />
           )}
 
-          {activeModal && (
-            <StatDetailModal
-              type={activeModal}
-              onClose={() => setActiveModal(null)}
-            />
+          {activeView === "dashboard" && activeModal && (
+            <div style={{ height: "100%", overflow: "hidden" }}>
+              <StatDetailModal
+                type={activeModal}
+                onClose={() => setActiveModal(null)}
+              />
+            </div>
           )}
         </main>
       </div>

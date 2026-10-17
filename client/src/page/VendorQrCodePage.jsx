@@ -6,6 +6,25 @@ function VendorQrCodePage({ vendor }) {
     ? `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${vendorId}`
     : "";
 
+  const handleDownloadQr = async () => {
+    if (!qrUrl) return;
+
+    try {
+      const response = await fetch(qrUrl);
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `vendor-qr-${vendorId || "code"}.png`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error("Failed to download QR code:", error);
+    }
+  };
+
   return (
     <section className="vendor-qr-management" aria-label="Vendor QR code management">
       <div className="vendor-qr-main-card">
@@ -20,9 +39,7 @@ function VendorQrCodePage({ vendor }) {
         <button 
           className="vendor-download-button" 
           type="button"
-          onClick={() => {
-            if (qrUrl) window.open(qrUrl, "_blank");
-          }}
+          onClick={handleDownloadQr}
         >
           <Icon type="download" />
           Download QR Code

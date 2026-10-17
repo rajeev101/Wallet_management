@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import VendorAppbar from "./VendorAppbar";
+import VendorAppbar, { VendorTopbarActions } from "./VendorAppbar";
 import { vendorPageCopy } from "./VendorDashboardData";
 import VendorDashboardHomePage from "./VendorDashboardHomePage";
 import VendorQrCodePage from "./VendorQrCodePage";
@@ -68,19 +68,26 @@ function VendorDashboardPage({ setPage }) {
     setPage("login");
   };
 
-  const [pageTitle, pageSubtitle] = vendorPageCopy[activeView] || vendorPageCopy.dashboard;
-  const appbarTitle =
-    activeView === "qr"
-      ? "QR Code Management"
-      : activeView === "transactions"
-        ? "Transactions"
-        : pageTitle;
+  const pageSubtitle = vendorPageCopy[activeView]?.[1] || vendorPageCopy.dashboard[1];
+  const topbarTitle =
+    activeView === "dashboard"
+      ? "Vendor Dashboard"
+      : activeView === "qr"
+        ? "QR Code"
+        : activeView === "transactions"
+          ? "Transaction"
+          : activeView === "settings"
+            ? "Profile"
+            : "Vendor Dashboard";
 
   return (
     <div className="vendor-dashboard-page">
       <header className="vendor-page-topbar">
-        <h1>{pageTitle}</h1>
-        <p>{pageSubtitle}</p>
+        <div className="vendor-page-topbar-title">
+          <strong>{topbarTitle}</strong>
+          <span>{pageSubtitle}</span>
+        </div>
+        <VendorTopbarActions vendor={vendor} onLogout={handleExit} />
       </header>
 
       <div className="vendor-shell">
@@ -91,12 +98,6 @@ function VendorDashboardPage({ setPage }) {
         />
 
         <main className="vendor-content">
-          <VendorAppbar
-            title={appbarTitle}
-            vendor={vendor}
-            onLogout={handleExit}
-          />
-
           {activeView === "dashboard" && (
             <VendorDashboardHomePage vendor={vendor} onShowTransactions={() => setActiveView("transactions")} />
           )}

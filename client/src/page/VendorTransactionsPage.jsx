@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import * as XLSX from "xlsx";
 import { getMyTransactions } from "../api/auth";
 import { Icon } from "./VendorIcon";
+
+const formatWholeRupees = (value) => {
+  const amount = Number(value || 0);
+  const sign = amount < 0 ? "-" : "";
+  return `${sign}₹${Math.trunc(Math.abs(amount))}`;
+};
 
 const transactionFilterOptions = [
   { label: "Last 3 Days", value: 3, unit: "days" },
@@ -10,74 +17,6 @@ const transactionFilterOptions = [
 ];
 
 const getTransactionDate = (transaction) => new Date(`${transaction.date} ${transaction.time}`);
-
-const escapePdfText = (value) => String(value).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
-
-const downloadBlob = (blob, fileName) => {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-};
-
-const createPdfBlob = (title, rows) => {
-  const pageHeight = 842;
-  const lines = [
-    title,
-    `Generated: ${new Date().toLocaleString()}`,
-    "",
-    ...rows,
-  ];
-
-  const content = [
-    "BT",
-    "/F1 18 Tf",
-    "50 792 Td",
-    `(${escapePdfText(lines[0])}) Tj`,
-    "/F1 11 Tf",
-    ...lines.slice(1).flatMap((line) => ["0 -20 Td", `(${escapePdfText(line)}) Tj`]),
-    "ET",
-  ].join("\n");
-
-  const objects = [
-    "<< /Type /Catalog /Pages 2 0 R >>",
-    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 ${pageHeight}] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>`,
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-    `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
-  ];
-
-  let pdf = "%PDF-1.4\n";
-  const offsets = [0];
-
-  objects.forEach((object, index) => {
-    offsets.push(pdf.length);
-    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
-  });
-
-  const xrefOffset = pdf.length;
-  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-  offsets.slice(1).forEach((offset) => {
-    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
-  });
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-
-  return new Blob([pdf], { type: "application/pdf" });
-};
-
-const getTransactionPdfRows = (items) =>
-  items.flatMap((transaction) => [
-    `Transaction ID: ${transaction.id}`,
-    `Customer: ${transaction.customer} (${transaction.customerId})`,
-    `Amount: ${transaction.amount}`,
-    `Date & Time: ${transaction.date} ${transaction.time}`,
-    `Status: ${transaction.status}`,
-    "",
-  ]);
 
 const getFilterCutoffDate = (selectedFilter, currentDate) => {
   const cutoffDate = new Date(currentDate);
@@ -111,8 +50,11 @@ function VendorTransactionsPage({ vendor }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [rawTransactions, setRawTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(10);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
 
   const dropdownRef = useRef(null);
+  const transactionHistoryRef = useRef(null);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -187,9 +129,9 @@ function VendorTransactionsPage({ vendor }) {
     });
 
     return {
-      todayRevenue: `₹${todayRev.toFixed(2)}`,
-      weekRevenue: `₹${weekRev.toFixed(2)}`,
-      monthRevenue: `₹${monthRev.toFixed(2)}`,
+      todayRevenue: formatWholeRupees(todayRev),
+      weekRevenue: formatWholeRupees(weekRev),
+      monthRevenue: formatWholeRupees(monthRev),
       totalTransactions: totalTxns,
     };
   }, [rawTransactions]);
@@ -197,7 +139,7 @@ function VendorTransactionsPage({ vendor }) {
   const formattedTransactions = useMemo(() => {
     return rawTransactions.map((t) => {
       const isRefund = t.type === "refund";
-      const amountStr = `${isRefund ? "-" : ""}₹${Number(t.amount || 0).toFixed(2)}`;
+      const amountStr = `${isRefund ? "-" : ""}${formatWholeRupees(Number(t.amount || 0))}`;
       const customerName = t.student?.name || "Campus Student";
       const customerIdVal = t.student?.email || "student@campus.edu";
 
@@ -231,7 +173,7 @@ function VendorTransactionsPage({ vendor }) {
     [formattedTransactions, selectedFilter]
   );
 
-  const visibleTransactions = useMemo(() => {
+  const filteredTransactions = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
 
     if (!normalizedQuery) {
@@ -243,18 +185,84 @@ function VendorTransactionsPage({ vendor }) {
     );
   }, [dateFilteredTransactions, searchQuery]);
 
+  const visibleTransactions = useMemo(
+    () => filteredTransactions.slice(0, visibleCount),
+    [filteredTransactions, visibleCount]
+  );
+
+  const hasMoreTransactions = visibleCount < filteredTransactions.length;
+
+  useEffect(() => {
+    setVisibleCount(10);
+    setIsFetchingMore(false);
+  }, [selectedFilter, searchQuery]);
+
+  useEffect(() => {
+    const historyEl = transactionHistoryRef.current;
+    if (!historyEl) return;
+
+    const handleScroll = () => {
+      const nearBottom = historyEl.scrollHeight - historyEl.scrollTop <= historyEl.clientHeight + 24;
+
+      if (!nearBottom || isLoading || isFetchingMore || !hasMoreTransactions) {
+        return;
+      }
+
+      setIsFetchingMore(true);
+      window.setTimeout(() => {
+        setVisibleCount((prevCount) => Math.min(prevCount + 10, filteredTransactions.length));
+        setIsFetchingMore(false);
+      }, 250);
+    };
+
+    historyEl.addEventListener("scroll", handleScroll, { passive: true });
+    return () => historyEl.removeEventListener("scroll", handleScroll);
+  }, [filteredTransactions.length, hasMoreTransactions, isFetchingMore, isLoading]);
+
   const handleFilterSelect = (option) => {
     setSelectedFilter(option);
     setIsFilterOpen(false);
   };
 
   const handleExport = () => {
+    const exportRows = dateFilteredTransactions.map((transaction) => ({
+      "Transaction ID": transaction.id,
+      Customer: transaction.customer,
+      Amount: transaction.amount,
+      "Date & Time": `${transaction.date} ${transaction.time}`,
+      Status: transaction.status,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+    worksheet["!cols"] = [
+      { wch: 28 },
+      { wch: 26 },
+      { wch: 16 },
+      { wch: 28 },
+      { wch: 16 },
+    ];
+
+    const headerStyle = {
+      font: { bold: true },
+      alignment: { horizontal: "center", vertical: "center" },
+      fill: { fgColor: { rgb: "EAF2F8" } },
+      border: {
+        top: { style: "thin" },
+        right: { style: "thin" },
+        bottom: { style: "thin" },
+        left: { style: "thin" },
+      },
+    };
+
+    ["A1", "B1", "C1", "D1", "E1"].forEach((cell) => {
+      if (worksheet[cell]) worksheet[cell].s = headerStyle;
+    });
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Transaction History");
+
     const rangeLabel = selectedFilter?.label || "All Transactions";
-    const rows = dateFilteredTransactions.length
-      ? getTransactionPdfRows(dateFilteredTransactions)
-      : ["No transactions found for selected period."];
-    const blob = createPdfBlob(`Vendor Transaction History - ${rangeLabel}`, rows);
-    downloadBlob(blob, `vendor-transactions-${rangeLabel.toLowerCase().replaceAll(" ", "-")}.pdf`);
+    XLSX.writeFile(workbook, `vendor-transactions-${rangeLabel.toLowerCase().replaceAll(" ", "-")}.xlsx`);
   };
 
   const emptyMessage = selectedFilter
@@ -326,7 +334,11 @@ function VendorTransactionsPage({ vendor }) {
           </button>
         </div>
 
-        <div className="vendor-transactions-table vendor-full-transactions-table">
+        <div
+          ref={transactionHistoryRef}
+          className="vendor-transactions-table vendor-full-transactions-table"
+          style={{ maxHeight: "520px", overflowY: "auto", overflowX: "hidden" }}
+        >
           <table>
             <thead>
               <tr>
@@ -345,23 +357,32 @@ function VendorTransactionsPage({ vendor }) {
                   </td>
                 </tr>
               ) : visibleTransactions.length ? (
-                visibleTransactions.map((transaction) => (
-                  <tr key={transaction.id}>
-                    <td>{transaction.id}</td>
-                    <td>
-                      <strong>{transaction.customer}</strong>
-                      <span>{transaction.customerId}</span>
-                    </td>
-                    <td>{transaction.amount}</td>
-                    <td>
-                      {transaction.date}
-                      <span>{transaction.time}</span>
-                    </td>
-                    <td>
-                      <span className="vendor-status-pill">{transaction.status}</span>
-                    </td>
-                  </tr>
-                ))
+                <>
+                  {visibleTransactions.map((transaction) => (
+                    <tr key={transaction.id}>
+                      <td>{transaction.id}</td>
+                      <td>
+                        <strong>{transaction.customer}</strong>
+                        <span>{transaction.customerId}</span>
+                      </td>
+                      <td>{transaction.amount}</td>
+                      <td>
+                        {transaction.date}
+                        <span>{transaction.time}</span>
+                      </td>
+                      <td>
+                        <span className="vendor-status-pill">{transaction.status}</span>
+                      </td>
+                    </tr>
+                  ))}
+                  {isFetchingMore && (
+                    <tr>
+                      <td colSpan="5" style={{ textAlign: "center", color: "#7c8497", padding: "18px 0" }}>
+                        Loading more transactions...
+                      </td>
+                    </tr>
+                  )}
+                </>
               ) : (
                 <tr>
                   <td colSpan="5" style={{ textAlign: "center", color: "#7c8497", padding: "24px 0" }}>

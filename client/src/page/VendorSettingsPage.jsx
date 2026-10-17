@@ -50,6 +50,12 @@ const getNameInitials = (name = "Vendor") => {
 const formatAccountType = (accountType = "vendor") =>
   accountType.charAt(0).toUpperCase() + accountType.slice(1);
 
+const formatWholeRupees = (value) => {
+  const amount = Number(value || 0);
+  const sign = amount < 0 ? "-" : "";
+  return `${sign}₹${Math.trunc(Math.abs(amount))}`;
+};
+
 function VendorSettingsPage({ vendor, onProfileChange }) {
   const [profile, setProfile] = useState(vendor || getStoredVendor);
   const [form, setForm] = useState({
@@ -265,7 +271,7 @@ function VendorSettingsPage({ vendor, onProfileChange }) {
             </div>
             <div>
               <strong>Wallet Balance</strong>
-              <span className="vendor-profile-wallet-value">₹{Number(profile.walletBalance || 0).toFixed(2)}</span>
+              <span className="vendor-profile-wallet-value">{formatWholeRupees(profile.walletBalance || 0)}</span>
             </div>
           </div>
 

@@ -52,6 +52,12 @@ const getNameInitials = (name = "Student") => {
 const formatAccountType = (accountType = "student") =>
   accountType.charAt(0).toUpperCase() + accountType.slice(1);
 
+const formatWalletDisplay = (value) => {
+  const numericValue = Number(value ?? 0);
+  const absValue = Math.abs(numericValue);
+  return `₹${Number.isInteger(absValue) ? String(absValue) : absValue.toFixed(2).replace(/\.00$/, "")}`;
+};
+
 function StudentProfilePage({ initialStudent, onProfileChange, onLogout }) {
   const [student, setStudent] = useState(initialStudent || getStoredStudent);
   const [profile, setProfile] = useState({
@@ -221,14 +227,7 @@ function StudentProfilePage({ initialStudent, onProfileChange, onLogout }) {
   };
 
   return (
-    <>
-      <StudentHeader
-        title="Profile"
-        dateText="Manage your personal information"
-        student={{ ...student, profilePicture: profile.photo }}
-        onLogout={onLogout}
-      />
-      <section className="student-profile-view" aria-label="Student profile">
+    <section className="student-profile-view" aria-label="Student profile">
         {!isEditingProfile ? (
         <article className="profile-settings-card">
           <div className="profile-overview-card">
@@ -264,7 +263,7 @@ function StudentProfilePage({ initialStudent, onProfileChange, onLogout }) {
             </div>
             <div>
               <strong>Wallet Balance</strong>
-              <span className="profile-wallet-value">₹{Number(student.walletBalance || 0).toFixed(2)}</span>
+              <span className="profile-wallet-value">{formatWalletDisplay(student.walletBalance || 0)}</span>
             </div>
           </div>
 
@@ -416,7 +415,6 @@ function StudentProfilePage({ initialStudent, onProfileChange, onLogout }) {
         </article>
         )}
       </section>
-    </>
   );
 }
 

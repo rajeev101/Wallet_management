@@ -76,27 +76,30 @@ function StudentHeader({
 
   // Safe evaluation of student details
   const getStudentInfo = () => {
-    if (student && student.name) {
-      return student;
-    }
     try {
       const storedUser = JSON.parse(localStorage.getItem("cpacUser") || "{}");
-      return {
-        name: storedUser.name || "Student",
-        email: storedUser.email || "student@lsp.com",
-        accountType: storedUser.accountType || "student",
-        profilePicture: storedUser.profilePicture || "",
-        walletBalance: storedUser.walletBalance || 0,
-      };
+      const mergedUser = { ...(student || {}), ...storedUser };
+
+      if (mergedUser && (mergedUser.name || storedUser.name)) {
+        return {
+          name: mergedUser.name || "Student",
+          email: mergedUser.email || "student@lsp.com",
+          accountType: mergedUser.accountType || "student",
+          profilePicture: mergedUser.profilePicture || "",
+          walletBalance: mergedUser.walletBalance || 0,
+        };
+      }
     } catch {
-      return {
-        name: "Student",
-        email: "student@lsp.com",
-        accountType: "student",
-        profilePicture: "",
-        walletBalance: 0,
-      };
+      // fall through to default below
     }
+
+    return {
+      name: student?.name || "Student",
+      email: student?.email || "student@lsp.com",
+      accountType: student?.accountType || "student",
+      profilePicture: student?.profilePicture || "",
+      walletBalance: student?.walletBalance || 0,
+    };
   };
 
   const user = getStudentInfo();

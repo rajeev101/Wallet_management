@@ -1,14 +1,12 @@
 import { useEffect, useState, useRef } from "react";
 import { Icon } from "./StudentIcon";
 import StudentHeader from "./StudentHeader";
-import { getApprovedVendors, getVendorById, makePayment } from "../api/auth";
+import { getVendorById, makePayment } from "../api/auth";
 import { Html5Qrcode } from "html5-qrcode";
 
 function StudentScanPayPage({ student, refreshProfile, onLogout }) {
   const [qrScanned, setQrScanned] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState("");
-  const [vendors, setVendors] = useState([]);
-  const [manualVendorId, setManualVendorId] = useState("");
   const [activeVendor, setActiveVendor] = useState(null);
   const [status, setStatus] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -20,9 +18,8 @@ function StudentScanPayPage({ student, refreshProfile, onLogout }) {
   const qrCodeScannerRef = useRef(null);
 
   const handleFetchVendor = async (idToFetch) => {
-    const id = idToFetch || manualVendorId;
-    if (!id || id.trim().length !== 24) {
-      setStatus("Please enter a valid 24-character Vendor ID.");
+    if (!idToFetch || idToFetch.trim().length !== 24) {
+      setStatus("Invalid vendor QR code.");
       return;
     }
 
@@ -31,7 +28,7 @@ function StudentScanPayPage({ student, refreshProfile, onLogout }) {
     const token = localStorage.getItem("cpacToken");
 
     try {
-      const res = await getVendorById(id.trim(), token);
+      const res = await getVendorById(idToFetch.trim(), token);
       if (res.success && res.vendor) {
         setActiveVendor(res.vendor);
         setQrScanned(true);
@@ -46,31 +43,30 @@ function StudentScanPayPage({ student, refreshProfile, onLogout }) {
     }
   };
 
+  const selectCameraId = async () => {
+    try {
+      const cameras = await Html5Qrcode.getCameras();
+      if (!cameras || cameras.length === 0) return null;
+
+      const preferred = cameras.find((camera) => /back|rear|environment/i.test(camera.label));
+      return (preferred || cameras[0]).id;
+    } catch (err) {
+      console.warn("Failed to list cameras, falling back to environment constraints:", err);
+      return null;
+    }
+  };
+
   const requestCameraPermission = async () => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      // Immediately stop tracks - we only needed to prompt permission
-      stream.getTracks().forEach((t) => t.stop());
+      stream.getTracks().forEach((track) => track.stop());
       setCameraPermission("granted");
       return true;
     } catch (err) {
       console.warn("Camera permission denied or unavailable:", err);
       setCameraPermission("denied");
       return false;
-    }
-  };
-
-  const selectCameraId = async () => {
-    try {
-      const cameras = await Html5Qrcode.getCameras();
-      if (!cameras || cameras.length === 0) return null;
-      // prefer back camera (contains 'back' or 'rear' or 'environment')
-      const preferred = cameras.find((c) => /back|rear|environment/i.test(c.label));
-      return (preferred || cameras[0]).id;
-    } catch (err) {
-      console.warn("Failed to list cameras, falling back to constraints:", err);
-      return null;
     }
   };
 
@@ -199,19 +195,6 @@ function StudentScanPayPage({ student, refreshProfile, onLogout }) {
     };
   }, [cameraActive, qrScanned]);
 
-  useEffect(() => {
-    const token = localStorage.getItem("cpacToken");
-    if (!token) return;
-
-    getApprovedVendors(token)
-      .then((data) => {
-        if (data.success && data.vendors) {
-          setVendors(data.vendors);
-        }
-      })
-      .catch((err) => console.error("Failed to load vendors:", err));
-  }, []);
-
   const handlePay = async () => {
     if (!activeVendor) {
       setStatus("No vendor selected.");
@@ -273,14 +256,7 @@ function StudentScanPayPage({ student, refreshProfile, onLogout }) {
   };
 
   return (
-    <>
-      <StudentHeader
-        title="Scan to Pay"
-        dateText="QR code scanner for quick payments"
-        student={student}
-        onLogout={onLogout}
-      />
-      <section className="scan-pay-view" aria-label="Scan to pay">
+    <section className="scan-pay-view" aria-label="Scan to pay">
         {!qrScanned ? (
         <div className="scanner-card">
           <div className="scanner-window" style={{ background: "#f8fafc", padding: "20px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "360px", position: "relative", width: "100%" }}>
@@ -346,83 +322,6 @@ function StudentScanPayPage({ student, refreshProfile, onLogout }) {
                 >
                   {cameraPermission === "denied" ? "Retry Camera" : "Open Camera"}
                 </button>
-              </div>
-            )}
-          </div>
-
-          <div style={{ margin: "20px 0", width: "100%", maxWidth: "400px" }}>
-            <label htmlFor="manualVendorId" style={{ display: "block", marginBottom: "8px", fontWeight: "bold", textAlign: "left" }}>
-              Enter Vendor ID (24-Char MongoDB ID)
-            </label>
-            <div style={{ display: "flex", gap: "10px" }}>
-              <input
-                id="manualVendorId"
-                type="text"
-                placeholder="e.g. 64b8f5d02..."
-                value={manualVendorId}
-                onChange={(e) => setManualVendorId(e.target.value)}
-                style={{
-                  flex: 1,
-                  padding: "10px",
-                  borderRadius: "6px",
-                  border: "1px solid #cbd6ea",
-                  fontFamily: "inherit"
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => handleFetchVendor()}
-                disabled={isSubmitting}
-                style={{
-                  padding: "10px 16px",
-                  borderRadius: "6px",
-                  background: "#3182ce",
-                  color: "white",
-                  border: "none",
-                  fontWeight: "bold",
-                  cursor: "pointer"
-                }}
-              >
-                Fetch
-              </button>
-            </div>
-
-            {vendors.length > 0 && (
-              <div style={{ marginTop: "20px" }}>
-                <label style={{ display: "block", marginBottom: "8px", fontWeight: "bold", textAlign: "left" }}>
-                  Or Select Approved Campus Vendor (Simulate QR Scan)
-                </label>
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  {vendors.map((v) => (
-                    <button
-                      key={v._id}
-                      type="button"
-                      onClick={() => {
-                        setManualVendorId(v._id);
-                        handleFetchVendor(v._id);
-                      }}
-                      style={{
-                        padding: "12px",
-                        textAlign: "left",
-                        borderRadius: "8px",
-                        background: "white",
-                        border: "1px solid #e2e8f0",
-                        cursor: "pointer",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center"
-                      }}
-                    >
-                      <div>
-                        <strong>{v.name}</strong>
-                        <div style={{ fontSize: "12px", color: "#718096" }}>{v.email}</div>
-                      </div>
-                      <span style={{ fontSize: "11px", color: "#a0aec0", fontFamily: "monospace" }}>
-                        {v._id.slice(-6)}
-                      </span>
-                    </button>
-                  ))}
-                </div>
               </div>
             )}
           </div>
@@ -550,7 +449,6 @@ function StudentScanPayPage({ student, refreshProfile, onLogout }) {
         </div>
         )}
       </section>
-    </>
   );
 }
 

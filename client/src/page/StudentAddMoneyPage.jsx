@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "./StudentIcon";
 import StudentHeader from "./StudentHeader";
 import { createWalletRequest, getWalletRequests } from "../api/auth";
@@ -31,24 +31,56 @@ const getStatusClass = (status) => {
   return "pending";
 };
 
+const formatDisplayAmount = (value) => {
+  const numericValue = Number(value ?? 0);
+  const absValue = Math.abs(numericValue);
+  return `₹${Number.isInteger(absValue) ? String(absValue) : absValue.toFixed(2).replace(/\.00$/, "")}`;
+};
+
 function StudentAddMoneyPage({ student, onLogout, refreshProfile }) {
   const [topUpAmount, setTopUpAmount] = useState("");
   const [requests, setRequests] = useState([]);
+  const [visibleRequests, setVisibleRequests] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const requestListRef = useRef(null);
 
   const token = localStorage.getItem("cpacToken");
+  const batchSize = 5;
 
   const loadRequests = async () => {
     try {
       if (!token) return;
       const res = await getWalletRequests(token);
       if (res.success) {
-        setRequests(res.requests || []);
+        const allRequests = res.requests || [];
+        setRequests(allRequests);
+        setVisibleRequests(allRequests.slice(0, batchSize));
       }
     } catch (err) {
       console.error("Failed to load wallet requests:", err);
+    }
+  };
+
+  const handleLoadMoreRequests = () => {
+    if (loadingMore || visibleRequests.length >= requests.length) {
+      return;
+    }
+
+    setLoadingMore(true);
+    window.setTimeout(() => {
+      const nextVisibleCount = Math.min(visibleRequests.length + batchSize, requests.length);
+      setVisibleRequests(requests.slice(0, nextVisibleCount));
+      setLoadingMore(false);
+    }, 200);
+  };
+
+  const handleRequestListScroll = (event) => {
+    const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight <= 20) {
+      handleLoadMoreRequests();
     }
   };
 
@@ -61,12 +93,14 @@ function StudentAddMoneyPage({ student, onLogout, refreshProfile }) {
     }
   }, []);
 
+  const sanitizeTopUpAmount = (value) => value.replace(/\D/g, "").slice(0, 10);
+
   const handleSubmit = async () => {
     setSuccessMessage("");
     setErrorMessage("");
 
     const parsedAmount = Number(topUpAmount);
-    if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
+    if (!/^\d{1,10}$/.test(topUpAmount) || Number.isNaN(parsedAmount) || parsedAmount <= 0) {
       setErrorMessage("Please enter a valid amount greater than 0");
       return;
     }
@@ -93,12 +127,6 @@ function StudentAddMoneyPage({ student, onLogout, refreshProfile }) {
 
   return (
     <section className="add-money-view" aria-label="Add money request">
-      <StudentHeader
-        title="Add Money"
-        student={student}
-        onLogout={onLogout}
-      />
-
       <div className="add-money-content">
         <div className="add-money-card">
           <h2>Request Add Money</h2>
@@ -107,18 +135,38 @@ function StudentAddMoneyPage({ student, onLogout, refreshProfile }) {
             <span>₹</span>
             <input
               id="topUpAmount"
-              min="0.01"
-              step="0.01"
-              type="number"
-              placeholder="0.00"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              placeholder="0"
               value={topUpAmount}
-              onChange={(event) => setTopUpAmount(event.target.value)}
+              onChange={(event) => setTopUpAmount(sanitizeTopUpAmount(event.target.value))}
+              onPaste={(event) => {
+                const pastedValue = event.clipboardData.getData("text") || "";
+                const sanitizedPaste = sanitizeTopUpAmount(pastedValue);
+
+                if (!/^\d*$/.test(pastedValue) || sanitizedPaste.length !== pastedValue.replace(/\D/g, "").length) {
+                  event.preventDefault();
+                }
+
+                if (pastedValue && /^\d*$/.test(pastedValue)) {
+                  const nextValue = sanitizeTopUpAmount(`${topUpAmount}${pastedValue}`);
+                  event.preventDefault();
+                  setTopUpAmount(nextValue);
+                }
+              }}
+              onKeyDown={(event) => {
+                const invalidKeys = ["e", "E", "+", "-", ".", ","]; 
+                if (invalidKeys.includes(event.key) || (event.key === " " && !event.ctrlKey && !event.metaKey)) {
+                  event.preventDefault();
+                }
+              }}
               disabled={loading}
             />
           </div>
           <div className="current-balance-panel">
             <span>Current Balance</span>
-            <strong>₹{Number(student?.walletBalance || 0).toFixed(2)}</strong>
+            <strong>{formatDisplayAmount(student?.walletBalance || 0)}</strong>
           </div>
           {errorMessage && <p style={{ color: "#ef4444", fontSize: "0.85rem", margin: "8px 0" }}>{errorMessage}</p>}
           {successMessage && <p style={{ color: "#10b981", fontSize: "0.85rem", margin: "8px 0" }}>{successMessage}</p>}
@@ -134,12 +182,12 @@ function StudentAddMoneyPage({ student, onLogout, refreshProfile }) {
 
         <div className="request-history-card">
           <h2>Request History</h2>
-          <div className="request-list">
-            {requests.length > 0 ? (
-              requests.map((req) => (
+          <div className="request-list" ref={requestListRef} onScroll={handleRequestListScroll}>
+            {visibleRequests.length > 0 ? (
+              visibleRequests.map((req) => (
                 <article key={req._id || req.id} className="request-item">
                   <div>
-                    <strong>{`₹${Number(req.amount).toFixed(2)}`}</strong>
+                    <strong>{formatDisplayAmount(req.amount)}</strong>
                     <span>
                       <Icon type="clock" />
                       {formatDate(req.createdAt)}
@@ -155,6 +203,7 @@ function StudentAddMoneyPage({ student, onLogout, refreshProfile }) {
                 No request history found.
               </p>
             )}
+            {loadingMore && <div className="request-list-loading">Loading...</div>}
           </div>
         </div>
       </div>

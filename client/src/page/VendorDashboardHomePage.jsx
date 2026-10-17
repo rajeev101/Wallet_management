@@ -1,13 +1,23 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { getMyTransactions } from "../api/auth";
 import { Icon } from "./VendorIcon";
+
+const formatWholeRupees = (amount) => {
+  const numericAmount = Number(amount || 0);
+  return `₹${new Intl.NumberFormat("en-IN", {
+    maximumFractionDigits: 0,
+  }).format(numericAmount)}`;
+};
 
 function VendorStatDetailModal({ type, vendor, onClose }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [transactions, setTransactions] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [visibleCount, setVisibleCount] = useState(10);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const recordsPerPage = 10;
+  const historyContainerRef = useRef(null);
 
   useEffect(() => {
     const token = localStorage.getItem("cpacToken");
@@ -57,6 +67,36 @@ function VendorStatDetailModal({ type, vendor, onClose }) {
     );
   };
 
+  useEffect(() => {
+    setVisibleCount(10);
+    setIsLoadingMore(false);
+  }, [transactions.length]);
+
+  const visibleTransactions = useMemo(() => transactions.slice(0, visibleCount), [transactions, visibleCount]);
+  const hasMoreTransactions = visibleCount < transactions.length;
+
+  useEffect(() => {
+    const container = historyContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const nearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 24;
+
+      if (!nearBottom || isLoadingMore || !hasMoreTransactions || loading) {
+        return;
+      }
+
+      setIsLoadingMore(true);
+      window.setTimeout(() => {
+        setVisibleCount((prev) => Math.min(prev + 10, transactions.length));
+        setIsLoadingMore(false);
+      }, 250);
+    };
+
+    container.addEventListener("scroll", handleScroll);
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [transactions.length, hasMoreTransactions, isLoadingMore, loading]);
+
   const renderContent = () => {
     if (loading) {
       return (
@@ -95,7 +135,7 @@ function VendorStatDetailModal({ type, vendor, onClose }) {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px", background: "#f8f9fb", padding: "16px", borderRadius: "10px", marginBottom: "20px" }}>
             <div>
               <span style={{ fontSize: "0.8rem", color: "#7c8497", textTransform: "uppercase", fontWeight: "500", display: "block" }}>Total Sales Today</span>
-              <strong style={{ fontSize: "1.4rem", color: "#10b981", fontWeight: "600" }}>₹{totalSalesToday.toFixed(2)}</strong>
+              <strong style={{ fontSize: "1.4rem", color: "#10b981", fontWeight: "600" }}>{formatWholeRupees(totalSalesToday)}</strong>
             </div>
             <div>
               <span style={{ fontSize: "0.8rem", color: "#7c8497", textTransform: "uppercase", fontWeight: "500", display: "block" }}>Orders Today</span>
@@ -103,11 +143,11 @@ function VendorStatDetailModal({ type, vendor, onClose }) {
             </div>
             <div>
               <span style={{ fontSize: "0.8rem", color: "#7c8497", textTransform: "uppercase", fontWeight: "500", display: "block" }}>Highest Sale</span>
-              <strong style={{ fontSize: "1.2rem", color: "#1a1d2e", fontWeight: "600" }}>₹{highestSale.toFixed(2)}</strong>
+              <strong style={{ fontSize: "1.2rem", color: "#1a1d2e", fontWeight: "600" }}>{formatWholeRupees(highestSale)}</strong>
             </div>
             <div>
               <span style={{ fontSize: "0.8rem", color: "#7c8497", textTransform: "uppercase", fontWeight: "500", display: "block" }}>Lowest Sale</span>
-              <strong style={{ fontSize: "1.2rem", color: "#1a1d2e", fontWeight: "600" }}>₹{lowestSale.toFixed(2)}</strong>
+              <strong style={{ fontSize: "1.2rem", color: "#1a1d2e", fontWeight: "600" }}>{formatWholeRupees(lowestSale)}</strong>
             </div>
           </div>
 
@@ -142,7 +182,7 @@ function VendorStatDetailModal({ type, vendor, onClose }) {
                           <span style={{ display: "block", fontSize: "0.75rem", color: "#9ca3b4", marginTop: "2px" }}>{timeStr}</span>
                         </td>
                         <td style={{ padding: "12px 14px", color: "#1a1d2e", fontWeight: "500" }}>{t.student?.name || t.student?._id || "Student"}</td>
-                        <td style={{ padding: "12px 14px", color: "#10b981", fontWeight: "600" }}>₹{Number(t.amount || 0).toFixed(2)}</td>
+                        <td style={{ padding: "12px 14px", color: "#10b981", fontWeight: "600" }}>{formatWholeRupees(Number(t.amount || 0))}</td>
                         <td style={{ padding: "12px 14px", color: "#7c8497", fontSize: "0.75rem" }}>{t._id}</td>
                         <td style={{ padding: "12px 14px", color: "#374151" }}>Wallet</td>
                         <td style={{ padding: "12px 14px" }}>
@@ -183,7 +223,7 @@ function VendorStatDetailModal({ type, vendor, onClose }) {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px", background: "#f8f9fb", padding: "16px", borderRadius: "10px", marginBottom: "20px" }}>
             <div style={{ gridColumn: "1 / -1" }}>
               <span style={{ fontSize: "0.8rem", color: "#7c8497", textTransform: "uppercase", fontWeight: "500", display: "block" }}>Total Monthly Sales</span>
-              <strong style={{ fontSize: "1.6rem", color: "#10b981", fontWeight: "600" }}>₹{totalMonthlySales.toFixed(2)}</strong>
+              <strong style={{ fontSize: "1.6rem", color: "#10b981", fontWeight: "600" }}>{formatWholeRupees(totalMonthlySales)}</strong>
             </div>
             <div>
               <span style={{ fontSize: "0.8rem", color: "#7c8497", textTransform: "uppercase", fontWeight: "500", display: "block" }}>Orders This Month</span>
@@ -191,15 +231,15 @@ function VendorStatDetailModal({ type, vendor, onClose }) {
             </div>
             <div>
               <span style={{ fontSize: "0.8rem", color: "#7c8497", textTransform: "uppercase", fontWeight: "500", display: "block" }}>Average Order Value</span>
-              <strong style={{ fontSize: "1.2rem", color: "#6366f1", fontWeight: "600" }}>₹{avgOrderValue.toFixed(2)}</strong>
+              <strong style={{ fontSize: "1.2rem", color: "#6366f1", fontWeight: "600" }}>{formatWholeRupees(avgOrderValue)}</strong>
             </div>
             <div>
               <span style={{ fontSize: "0.8rem", color: "#7c8497", textTransform: "uppercase", fontWeight: "500", display: "block" }}>Highest Order</span>
-              <strong style={{ fontSize: "1.2rem", color: "#1a1d2e", fontWeight: "600" }}>₹{highestOrder.toFixed(2)}</strong>
+              <strong style={{ fontSize: "1.2rem", color: "#1a1d2e", fontWeight: "600" }}>{formatWholeRupees(highestOrder)}</strong>
             </div>
             <div>
               <span style={{ fontSize: "0.8rem", color: "#7c8497", textTransform: "uppercase", fontWeight: "500", display: "block" }}>Lowest Order</span>
-              <strong style={{ fontSize: "1.2rem", color: "#1a1d2e", fontWeight: "600" }}>₹{lowestOrder.toFixed(2)}</strong>
+              <strong style={{ fontSize: "1.2rem", color: "#1a1d2e", fontWeight: "600" }}>{formatWholeRupees(lowestOrder)}</strong>
             </div>
           </div>
 
@@ -233,7 +273,7 @@ function VendorStatDetailModal({ type, vendor, onClose }) {
                           <span style={{ display: "block", fontSize: "0.75rem", color: "#9ca3b4", marginTop: "2px" }}>{timeStr}</span>
                         </td>
                         <td style={{ padding: "12px 14px", color: "#1a1d2e", fontWeight: "500" }}>{t.student?.name || t.student?._id || "Student"}</td>
-                        <td style={{ padding: "12px 14px", color: "#10b981", fontWeight: "600" }}>₹{Number(t.amount || 0).toFixed(2)}</td>
+                        <td style={{ padding: "12px 14px", color: "#10b981", fontWeight: "600" }}>{formatWholeRupees(Number(t.amount || 0))}</td>
                         <td style={{ padding: "12px 14px", color: "#7c8497", fontSize: "0.75rem" }}>{t._id}</td>
                         <td style={{ padding: "12px 14px" }}>
                           <span style={{ 
@@ -265,19 +305,12 @@ function VendorStatDetailModal({ type, vendor, onClose }) {
       const pendingTxns = transactions.filter((t) => t.status === "pending");
       const totalRevenue = completedTxns.reduce((sum, t) => sum + t.amount, 0);
 
-      // Paginated list
-      const totalPages = Math.ceil(totalTxns / recordsPerPage);
-      const paginatedTxns = transactions.slice(
-        (currentPage - 1) * recordsPerPage,
-        currentPage * recordsPerPage
-      );
-
       return (
         <div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", background: "#f8f9fb", padding: "14px", borderRadius: "10px", marginBottom: "20px" }}>
             <div style={{ gridColumn: "1 / -1" }}>
               <span style={{ fontSize: "0.8rem", color: "#7c8497", textTransform: "uppercase", fontWeight: "500", display: "block" }}>Total Revenue</span>
-              <strong style={{ fontSize: "1.4rem", color: "#10b981", fontWeight: "600" }}>₹{totalRevenue.toFixed(2)}</strong>
+              <strong style={{ fontSize: "1.4rem", color: "#10b981", fontWeight: "600" }}>{formatWholeRupees(totalRevenue)}</strong>
             </div>
             <div>
               <span style={{ fontSize: "0.75rem", color: "#7c8497", textTransform: "uppercase", fontWeight: "500", display: "block" }}>Total Txns</span>
@@ -301,7 +334,17 @@ function VendorStatDetailModal({ type, vendor, onClose }) {
             </div>
           ) : (
             <>
-              <div style={{ overflowX: "auto", border: "1px solid rgba(0,0,0,0.06)", borderRadius: "8px", background: "#ffffff" }}>
+              <div
+                ref={historyContainerRef}
+                style={{
+                  overflowX: "auto",
+                  overflowY: "auto",
+                  border: "1px solid rgba(0,0,0,0.06)",
+                  borderRadius: "8px",
+                  background: "#ffffff",
+                  maxHeight: "360px",
+                }}
+              >
                 <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.85rem" }}>
                   <thead>
                     <tr style={{ background: "#f8f9fb" }}>
@@ -313,7 +356,7 @@ function VendorStatDetailModal({ type, vendor, onClose }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedTxns.map((t) => {
+                    {visibleTransactions.map((t) => {
                       const d = new Date(t.createdAt);
                       const dateStr = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
                       const timeStr = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
@@ -324,7 +367,7 @@ function VendorStatDetailModal({ type, vendor, onClose }) {
                             <span style={{ display: "block", fontSize: "0.75rem", color: "#9ca3b4", marginTop: "2px" }}>{timeStr}</span>
                           </td>
                           <td style={{ padding: "12px 14px", color: "#1a1d2e", fontWeight: "500" }}>{t.student?.name || t.student?._id || "Student"}</td>
-                          <td style={{ padding: "12px 14px", color: "#1a1d2e", fontWeight: "600" }}>₹{Number(t.amount || 0).toFixed(2)}</td>
+                          <td style={{ padding: "12px 14px", color: "#1a1d2e", fontWeight: "600" }}>{formatWholeRupees(Number(t.amount || 0))}</td>
                           <td style={{ padding: "12px 14px", color: "#7c8497", fontSize: "0.75rem" }}>{t._id}</td>
                           <td style={{ padding: "12px 14px" }}>
                             <span style={{ 
@@ -341,47 +384,23 @@ function VendorStatDetailModal({ type, vendor, onClose }) {
                         </tr>
                       );
                     })}
+                    {isLoadingMore && (
+                      <tr>
+                        <td colSpan="5" style={{ textAlign: "center", color: "#7c8497", padding: "16px 0" }}>
+                          Loading more transactions...
+                        </td>
+                      </tr>
+                    )}
+                    {!hasMoreTransactions && !isLoadingMore && transactions.length > 0 && (
+                      <tr>
+                        <td colSpan="5" style={{ textAlign: "center", color: "#7c8497", padding: "16px 0" }}>
+                          No more transactions
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
-
-              {totalPages > 1 && (
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px" }}>
-                  <button 
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                    style={{
-                      border: "1px solid rgba(0,0,0,0.08)",
-                      borderRadius: "6px",
-                      background: "#ffffff",
-                      padding: "6px 12px",
-                      cursor: currentPage === 1 ? "not-allowed" : "pointer",
-                      opacity: currentPage === 1 ? 0.6 : 1,
-                      fontSize: "0.8rem",
-                      fontWeight: "500"
-                    }}
-                  >
-                    Previous
-                  </button>
-                  <span style={{ fontSize: "0.8rem", color: "#7c8497" }}>Page {currentPage} of {totalPages}</span>
-                  <button 
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                    style={{
-                      border: "1px solid rgba(0,0,0,0.08)",
-                      borderRadius: "6px",
-                      background: "#ffffff",
-                      padding: "6px 12px",
-                      cursor: currentPage === totalPages ? "not-allowed" : "pointer",
-                      opacity: currentPage === totalPages ? 0.6 : 1,
-                      fontSize: "0.8rem",
-                      fontWeight: "500"
-                    }}
-                  >
-                    Next
-                  </button>
-                </div>
-              )}
             </>
           )}
         </div>
@@ -401,11 +420,11 @@ function VendorStatDetailModal({ type, vendor, onClose }) {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px", background: "#f8f9fb", padding: "16px", borderRadius: "10px", marginBottom: "20px" }}>
             <div style={{ gridColumn: "1 / -1" }}>
               <span style={{ fontSize: "0.8rem", color: "#7c8497", textTransform: "uppercase", fontWeight: "500", display: "block" }}>Average Order Value</span>
-              <strong style={{ fontSize: "1.6rem", color: "#6366f1", fontWeight: "600" }}>₹{avgOrderValue.toFixed(2)}</strong>
+              <strong style={{ fontSize: "1.6rem", color: "#6366f1", fontWeight: "600" }}>{formatWholeRupees(avgOrderValue)}</strong>
             </div>
             <div>
               <span style={{ fontSize: "0.8rem", color: "#7c8497", textTransform: "uppercase", fontWeight: "500", display: "block" }}>Total Revenue</span>
-              <strong style={{ fontSize: "1.2rem", color: "#10b981", fontWeight: "600" }}>₹{totalRevenue.toFixed(2)}</strong>
+              <strong style={{ fontSize: "1.2rem", color: "#10b981", fontWeight: "600" }}>{formatWholeRupees(totalRevenue)}</strong>
             </div>
             <div>
               <span style={{ fontSize: "0.8rem", color: "#7c8497", textTransform: "uppercase", fontWeight: "500", display: "block" }}>Total Orders Used</span>
@@ -413,11 +432,11 @@ function VendorStatDetailModal({ type, vendor, onClose }) {
             </div>
             <div>
               <span style={{ fontSize: "0.8rem", color: "#7c8497", textTransform: "uppercase", fontWeight: "500", display: "block" }}>Highest Order</span>
-              <strong style={{ fontSize: "1.2rem", color: "#1a1d2e", fontWeight: "600" }}>₹{highest.toFixed(2)}</strong>
+              <strong style={{ fontSize: "1.2rem", color: "#1a1d2e", fontWeight: "600" }}>{formatWholeRupees(highest)}</strong>
             </div>
             <div>
               <span style={{ fontSize: "0.8rem", color: "#7c8497", textTransform: "uppercase", fontWeight: "500", display: "block" }}>Lowest Order</span>
-              <strong style={{ fontSize: "1.2rem", color: "#1a1d2e", fontWeight: "600" }}>₹{lowest.toFixed(2)}</strong>
+              <strong style={{ fontSize: "1.2rem", color: "#1a1d2e", fontWeight: "600" }}>{formatWholeRupees(lowest)}</strong>
             </div>
           </div>
 
@@ -451,7 +470,7 @@ function VendorStatDetailModal({ type, vendor, onClose }) {
                           <span style={{ display: "block", fontSize: "0.75rem", color: "#9ca3b4", marginTop: "2px" }}>{timeStr}</span>
                         </td>
                         <td style={{ padding: "12px 14px", color: "#1a1d2e", fontWeight: "500" }}>{t.student?.name || t.student?._id || "Student"}</td>
-                        <td style={{ padding: "12px 14px", color: "#10b981", fontWeight: "600" }}>₹{Number(t.amount || 0).toFixed(2)}</td>
+                        <td style={{ padding: "12px 14px", color: "#10b981", fontWeight: "600" }}>{formatWholeRupees(Number(t.amount || 0))}</td>
                         <td style={{ padding: "12px 14px", color: "#7c8497", fontSize: "0.75rem" }}>{t._id}</td>
                         <td style={{ padding: "12px 14px" }}>
                           <span style={{ 
@@ -599,16 +618,15 @@ function VendorDashboardHomePage({ vendor, onShowTransactions }) {
     const avgOrderValue = totalTxns > 0 ? totalAmt / totalTxns : 0;
 
     return {
-      todaySales: `₹${todaySales.toFixed(2)}`,
-      monthSales: `₹${monthSales.toFixed(2)}`,
+      todaySales: formatWholeRupees(todaySales).replace(/^₹/, ""),
+      monthSales: formatWholeRupees(monthSales),
       totalTransactions: totalTxns,
-      avgOrderValue: `₹${avgOrderValue.toFixed(2)}`,
+      avgOrderValue: formatWholeRupees(avgOrderValue),
     };
   }, [rawTransactions]);
 
   const formattedTransactions = useMemo(() => {
     return rawTransactions.slice(0, 5).map((t) => {
-      const amountStr = `₹${Number(t.amount || 0).toFixed(2)}`;
       const customerName = t.student?.name || "Campus Student";
       const customerIdVal = t.student?.email || "student@campus.edu";
 
@@ -627,7 +645,7 @@ function VendorDashboardHomePage({ vendor, onShowTransactions }) {
         id: t._id,
         customer: customerName,
         customerId: customerIdVal,
-        amount: amountStr,
+        amount: formatWholeRupees(Number(t.amount || 0)),
         date: dateStr,
         time: timeStr,
         status: t.status ? t.status.charAt(0).toUpperCase() + t.status.slice(1) : "Completed",
@@ -644,7 +662,6 @@ function VendorDashboardHomePage({ vendor, onShowTransactions }) {
             <strong>{stats.todaySales}</strong>
             <em><Icon type="trend" />Dynamic</em>
           </div>
-          <Icon type="dollar" />
         </article>
         <article style={{ cursor: "pointer" }} onClick={() => setActiveModal("month")}>
           <div>
