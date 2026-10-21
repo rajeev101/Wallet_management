@@ -28,7 +28,7 @@ const getVendorInfo = (vendor = {}) => {
   }
 
   try {
-    const storedUser = JSON.parse(localStorage.getItem("cpacUser") || "{}");
+    const storedUser = JSON.parse(sessionStorage.getItem("cpacUser") || "{}");
 
     return {
       name: storedUser.name || "Campus Cafe",
@@ -71,7 +71,7 @@ export function VendorTopbarActions({ vendor = {}, onLogout }) {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem("cpacToken");
+    const token = sessionStorage.getItem("cpacToken");
     if (!token) return undefined;
 
     const loadNotifications = async () => {
@@ -91,7 +91,7 @@ export function VendorTopbarActions({ vendor = {}, onLogout }) {
   }, []);
 
   const handleClearNotif = async () => {
-    const token = localStorage.getItem("cpacToken");
+    const token = sessionStorage.getItem("cpacToken");
     if (!token) return;
 
     try {
@@ -106,9 +106,9 @@ export function VendorTopbarActions({ vendor = {}, onLogout }) {
     if (onLogout) {
       onLogout();
     } else {
-      localStorage.removeItem("cpacToken");
-      localStorage.removeItem("cpacUserType");
-      localStorage.removeItem("cpacUser");
+      sessionStorage.removeItem("cpacToken");
+      sessionStorage.removeItem("cpacUserType");
+      sessionStorage.removeItem("cpacUser");
       window.location.reload();
     }
   };
@@ -255,7 +255,7 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem("cpacToken");
+    const token = sessionStorage.getItem("cpacToken");
     if (!token) return undefined;
 
     const loadNotifications = async () => {
@@ -275,7 +275,7 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
   }, []);
 
   const handleClearNotif = async () => {
-    const token = localStorage.getItem("cpacToken");
+    const token = sessionStorage.getItem("cpacToken");
     if (!token) return;
 
     try {
@@ -290,9 +290,9 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
     if (onLogout) {
       onLogout();
     } else {
-      localStorage.removeItem("cpacToken");
-      localStorage.removeItem("cpacUserType");
-      localStorage.removeItem("cpacUser");
+      sessionStorage.removeItem("cpacToken");
+      sessionStorage.removeItem("cpacUserType");
+      sessionStorage.removeItem("cpacUser");
       window.location.reload();
     }
   };
@@ -307,7 +307,7 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
     }
 
     try {
-      const storedUser = JSON.parse(localStorage.getItem("cpacUser") || "{}");
+      const storedUser = JSON.parse(sessionStorage.getItem("cpacUser") || "{}");
 
       return {
         name: storedUser.name || "Campus Cafe",

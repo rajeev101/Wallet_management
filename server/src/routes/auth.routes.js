@@ -44,12 +44,12 @@ router.get("/profile", authMiddleware, getProfile);
 
 router.put("/profile", authMiddleware, updateProfile);
 
-router.post("/wallet/request", authMiddleware, createWalletRequest);
-router.get("/wallet/requests", authMiddleware, getStudentWalletRequests);
-router.post("/pay", authMiddleware, makePayment);
+router.post("/wallet/request", authMiddleware, authMiddleware.requireRoles("student"), createWalletRequest);
+router.get("/wallet/requests", authMiddleware, authMiddleware.requireRoles("student"), getStudentWalletRequests);
+router.post("/pay", authMiddleware, authMiddleware.requireRoles("student"), makePayment);
 router.get("/transactions", authMiddleware, getMyTransactions);
-router.get("/vendors", authMiddleware, getApprovedVendors);
-router.get("/vendors/:id", authMiddleware, getVendorById);
+router.get("/vendors", authMiddleware, authMiddleware.requireRoles("student"), getApprovedVendors);
+router.get("/vendors/:id", authMiddleware, authMiddleware.requireRoles("student"), getVendorById);
 router.get("/notifications", authMiddleware, getNotifications);
 router.delete("/notifications", authMiddleware, clearNotifications);
 

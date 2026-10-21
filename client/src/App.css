@@ -659,10 +659,16 @@
 }
 
 .student-sidebar {
+  position: fixed;
+  top: 5.33333rem;
+  bottom: 0;
+  left: 0;
+  width: 17.3333rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: calc(100svh - 5.33333rem);
+  height: calc(100svh - 5.33333rem);
+  overflow-y: auto;
   background: linear-gradient(180deg, #0f1629 0%, #151b33 100%);
   color: #ffffff;
 }
@@ -771,6 +777,7 @@
 
 .student-content {
   position: relative;
+  grid-column: 2;
   min-width: 0;
   padding: 1.86667rem 2.13333rem 2.66667rem;
   background: #f5f7fa;
@@ -2599,10 +2606,13 @@
 
 .vendor-sidebar {
   display: flex;
-  position: sticky;
-  top: 0;
-  height: 100svh;
-  min-height: 100svh;
+  position: fixed;
+  top: 5.33333rem;
+  bottom: 0;
+  left: 0;
+  width: 17.3333rem;
+  height: calc(100svh - 5.33333rem);
+  min-height: 0;
   flex-direction: column;
   justify-content: flex-start;
   background: #0f1222;
@@ -2611,6 +2621,7 @@
 }
 
 .vendor-brand {
+  transform: translateY(0.5rem);
   display: grid;
   grid-template-columns: 2.93333rem 1fr 1.86667rem;
   gap: 0.8rem;
@@ -2720,6 +2731,7 @@
 }
 
 .vendor-logout {
+  flex-shrink: 0;
   min-height: 3.06667rem;
   margin-top: auto;
   margin-bottom: 1.06667rem;
@@ -2739,6 +2751,7 @@
 
 .vendor-content {
   position: relative;
+  grid-column: 2;
   z-index: 0;
   min-width: 0;
   padding: 1.86667rem 2.13333rem 2.66667rem;
@@ -4077,6 +4090,10 @@
     overflow: visible;
   }
 
+  .vendor-content {
+    grid-column: auto;
+  }
+
   .vendor-brand {
     grid-template-columns: 2.93333rem 1fr 1.86667rem;
     min-height: auto;
@@ -4506,6 +4523,241 @@
 
   .vendor-settings-card {
     padding: 1.6rem 1.33333rem;
+  }
+}
+
+.mobile-nav-toggle,
+.mobile-sidebar-close,
+.mobile-sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .student-shell,
+  .vendor-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .student-topbar,
+  .vendor-page-topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.8rem;
+  }
+
+  .student-topbar > div:first-child,
+  .vendor-page-topbar-title {
+    grid-column: 1;
+    min-width: 0;
+  }
+
+  .student-topbar > .history-profile,
+  .vendor-topbar-actions {
+    grid-column: 1 / -1;
+    justify-self: end;
+    max-width: 100%;
+  }
+
+  .mobile-nav-toggle {
+    display: inline-flex;
+    grid-column: 2;
+    grid-row: 1;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-width: 2.93333rem;
+    min-height: 2.93333rem;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 0.533333rem;
+    padding: 0 0.8rem;
+    background: #ffffff;
+    color: #1a1d2e;
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+
+  .mobile-sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 49;
+    display: block;
+    border: 0;
+    padding: 0;
+    background: rgba(15, 23, 42, 0.52);
+    cursor: default;
+  }
+
+  .mobile-sidebar-close {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 2.93333rem;
+    height: 2.93333rem;
+    align-self: flex-end;
+    margin: 0.8rem 0.8rem 0;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 0.533333rem;
+    background: transparent;
+    color: #ffffff;
+    font: inherit;
+    font-size: 1.6rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .student-sidebar,
+  .vendor-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 50;
+    display: flex;
+    width: min(18.6667rem, 86vw);
+    max-width: calc(100vw - 3rem);
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    transform: translateX(-105%);
+    visibility: hidden;
+    transition: transform 0.2s ease, visibility 0s linear 0.2s;
+    box-shadow: 0 1rem 2.5rem rgba(15, 23, 42, 0.25);
+  }
+
+  .student-sidebar {
+    justify-content: flex-start;
+    background: #0f1222;
+  }
+
+  .student-brand {
+    grid-template-columns: 2.93333rem 1fr;
+    gap: 0.8rem;
+    min-height: 5.33333rem;
+    padding: 1.33333rem 1.2rem;
+  }
+
+  .student-brand-icon {
+    width: 2.93333rem;
+    height: 2.93333rem;
+    border-radius: 0.666667rem;
+  }
+
+  .student-brand-icon svg {
+    width: 1.46667rem;
+    height: 1.46667rem;
+  }
+
+  .student-nav {
+    padding: 1.06667rem 0.933333rem;
+  }
+
+  .student-nav button {
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 600;
+  }
+
+  .student-nav button.active {
+    background: #3d4df2;
+    color: #ffffff;
+    font-weight: 600;
+  }
+
+  .student-logout {
+    flex-shrink: 0;
+    min-height: 3.06667rem;
+    margin-top: auto;
+    margin-right: 0.933333rem;
+    margin-bottom: 1.06667rem;
+    margin-left: 0.933333rem;
+    width: calc(100% - 1.86667rem);
+    border-top: 0;
+    border-radius: 0.533333rem;
+    padding: 0 1.06667rem;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .student-sidebar.mobile-open,
+  .vendor-sidebar.mobile-open {
+    transform: translateX(0);
+    visibility: visible;
+    transition: transform 0.2s ease, visibility 0s;
+  }
+
+  .student-content,
+  .vendor-content {
+    grid-column: 1;
+    min-width: 0;
+  }
+
+  .stats-grid,
+  .vendor-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 721px) and (max-width: 900px) {
+  .student-nav,
+  .vendor-nav {
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  .student-nav button,
+  .vendor-nav button,
+  .student-logout,
+  .vendor-logout {
+    justify-content: flex-start;
+    min-width: 0;
+  }
+
+  .balance-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .stats-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .student-nav,
+  .vendor-nav {
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  .student-brand {
+    min-height: auto;
+    padding: 0.933333rem 1.06667rem;
+  }
+
+  .student-brand strong {
+    font-size: 0.95rem;
+  }
+
+  .student-nav {
+    padding: 0.666667rem;
+  }
+
+  .student-nav button,
+  .vendor-nav button,
+  .student-logout,
+  .vendor-logout {
+    justify-content: flex-start;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 512px) {
+  .student-topbar,
+  .vendor-page-topbar {
+    padding-right: 1rem;
+    padding-left: 1rem;
+  }
+
+  .stats-grid,
+  .vendor-stats-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

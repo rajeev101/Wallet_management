@@ -24,13 +24,17 @@ function LoginForm({ setPage }) {
     setStatus("");
     setIsSubmitting(true);
 
+    sessionStorage.removeItem("cpacToken");
+    sessionStorage.removeItem("cpacUserType");
+    sessionStorage.removeItem("cpacUser");
+
     try {
       const data = await loginUser(form);
       const safeUser = { ...(data.user || {}) };
       delete safeUser.password;
-      localStorage.setItem("cpacToken", data.token);
-      localStorage.setItem("cpacUserType", safeUser.accountType || "student");
-      localStorage.setItem("cpacUser", JSON.stringify(safeUser));
+      sessionStorage.setItem("cpacToken", data.token);
+      sessionStorage.setItem("cpacUserType", safeUser.accountType || "student");
+      sessionStorage.setItem("cpacUser", JSON.stringify(safeUser));
       setStatus("Login successful.");
       setPage(
         safeUser.accountType === "vendor"

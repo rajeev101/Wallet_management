@@ -19,6 +19,11 @@ const request = async (path, payload, options = {}) => {
   const data = await response.json();
 
   if (!response.ok) {
+    if (response.status === 401) {
+      sessionStorage.removeItem("cpacToken");
+      sessionStorage.removeItem("cpacUserType");
+      sessionStorage.removeItem("cpacUser");
+    }
     throw new Error(data.message || "Request failed");
   }
 

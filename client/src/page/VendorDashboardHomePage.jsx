@@ -20,7 +20,7 @@ function VendorStatDetailModal({ type, vendor, onClose }) {
   const historyContainerRef = useRef(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("cpacToken");
+    const token = sessionStorage.getItem("cpacToken");
     if (!token) {
       setError("Session expired. Please log in again.");
       setLoading(false);
@@ -559,8 +559,39 @@ function VendorStatDetailModal({ type, vendor, onClose }) {
 
 function VendorDashboardHomePage({ vendor, onShowTransactions }) {
   const [rawTransactions, setRawTransactions] = useState([]);
-  const [activeModal, setActiveModal] = useState(null);
+  const [activeModal, setActiveModal] = useState(() =>
+    ["today", "month", "total", "avg"].includes(window.history.state?.vendorModal)
+      ? window.history.state.vendorModal
+      : null
+  );
   const [qrError, setQrError] = useState(false);
+
+  const openModal = (type) => {
+    window.history.pushState(
+      { ...(window.history.state || {}), vendorModal: type },
+      "",
+      window.location.href
+    );
+    setActiveModal(type);
+  };
+
+  const closeModal = () => {
+    if (window.history.state?.vendorModal) {
+      window.history.back();
+    } else {
+      setActiveModal(null);
+    }
+  };
+
+  useEffect(() => {
+    const handleVendorModalPopState = (event) => {
+      const modal = event.state?.vendorModal;
+      setActiveModal(["today", "month", "total", "avg"].includes(modal) ? modal : null);
+    };
+
+    window.addEventListener("popstate", handleVendorModalPopState);
+    return () => window.removeEventListener("popstate", handleVendorModalPopState);
+  }, []);
 
   const vendorId = vendor?.id || vendor?._id || "";
   const qrUrl = useMemo(() => {
@@ -574,7 +605,7 @@ function VendorDashboardHomePage({ vendor, onShowTransactions }) {
   }, [vendorId]);
 
   useEffect(() => {
-    const token = localStorage.getItem("cpacToken");
+    const token = sessionStorage.getItem("cpacToken");
     if (!token) return;
 
     getMyTransactions(token)
@@ -656,14 +687,14 @@ function VendorDashboardHomePage({ vendor, onShowTransactions }) {
   return (
     <>
       <section className="vendor-stats-grid" aria-label="Vendor sales statistics">
-        <article style={{ cursor: "pointer" }} onClick={() => setActiveModal("today")}>
+        <article style={{ cursor: "pointer" }} onClick={() => openModal("today")}>
           <div>
             <span>Today's Sales</span>
             <strong>{stats.todaySales}</strong>
             <em><Icon type="trend" />Dynamic</em>
           </div>
         </article>
-        <article style={{ cursor: "pointer" }} onClick={() => setActiveModal("month")}>
+        <article style={{ cursor: "pointer" }} onClick={() => openModal("month")}>
           <div>
             <span>This Month</span>
             <strong>{stats.monthSales}</strong>
@@ -671,7 +702,7 @@ function VendorDashboardHomePage({ vendor, onShowTransactions }) {
           </div>
           <Icon type="calendar" />
         </article>
-        <article style={{ cursor: "pointer" }} onClick={() => setActiveModal("total")}>
+        <article style={{ cursor: "pointer" }} onClick={() => openModal("total")}>
           <div>
             <span>Total Transactions</span>
             <strong>{stats.totalTransactions}</strong>
@@ -679,7 +710,7 @@ function VendorDashboardHomePage({ vendor, onShowTransactions }) {
           </div>
           <Icon type="bag" />
         </article>
-        <article style={{ cursor: "pointer" }} onClick={() => setActiveModal("avg")}>
+        <article style={{ cursor: "pointer" }} onClick={() => openModal("avg")}>
           <div>
             <span>Avg. Order Value</span>
             <strong>{stats.avgOrderValue}</strong>
@@ -762,7 +793,7 @@ function VendorDashboardHomePage({ vendor, onShowTransactions }) {
         <VendorStatDetailModal
           type={activeModal}
           vendor={vendor}
-          onClose={() => setActiveModal(null)}
+          onClose={closeModal}
         />
       )}
     </>

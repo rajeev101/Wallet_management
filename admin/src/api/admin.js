@@ -1,7 +1,7 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5050/api/v1";
 
-const getToken = () => localStorage.getItem("cpacToken");
+const getToken = () => sessionStorage.getItem("cpacToken");
 
 const request = async (path, payload, options = {}) => {
   const requestOptions = {
@@ -20,6 +20,11 @@ const request = async (path, payload, options = {}) => {
   const data = await response.json();
 
   if (!response.ok) {
+    if (response.status === 401) {
+      sessionStorage.removeItem("cpacToken");
+      sessionStorage.removeItem("cpacUserType");
+      sessionStorage.removeItem("cpacUser");
+    }
     throw new Error(data.message || "Request failed");
   }
 

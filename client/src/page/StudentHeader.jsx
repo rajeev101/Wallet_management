@@ -34,7 +34,7 @@ function StudentHeader({
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem("cpacToken");
+    const token = sessionStorage.getItem("cpacToken");
     if (!token) return undefined;
 
     const loadNotifications = async () => {
@@ -52,7 +52,7 @@ function StudentHeader({
   }, []);
 
   const handleClearNotif = async () => {
-    const token = localStorage.getItem("cpacToken");
+    const token = sessionStorage.getItem("cpacToken");
     if (!token) return;
 
     try {
@@ -67,9 +67,9 @@ function StudentHeader({
     if (onLogout) {
       onLogout();
     } else {
-      localStorage.removeItem("cpacToken");
-      localStorage.removeItem("cpacUserType");
-      localStorage.removeItem("cpacUser");
+      sessionStorage.removeItem("cpacToken");
+      sessionStorage.removeItem("cpacUserType");
+      sessionStorage.removeItem("cpacUser");
       window.location.reload();
     }
   };
@@ -77,7 +77,7 @@ function StudentHeader({
   // Safe evaluation of student details
   const getStudentInfo = () => {
     try {
-      const storedUser = JSON.parse(localStorage.getItem("cpacUser") || "{}");
+      const storedUser = JSON.parse(sessionStorage.getItem("cpacUser") || "{}");
       const mergedUser = { ...(student || {}), ...storedUser };
 
       if (mergedUser && (mergedUser.name || storedUser.name)) {

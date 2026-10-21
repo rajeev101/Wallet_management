@@ -134,6 +134,13 @@ exports.login = async (req, res) => {
       });
     }
 
+    if (user.accountType === "vendor" && user.vendorStatus !== "approved") {
+      return res.status(403).json({
+        success: false,
+        message: "Your vendor account is inactive. Please contact the administrator.",
+      });
+    }
+
     const token = generateToken(user._id);
 
     let wallet = await Wallet.findOne({ owner: user._id });

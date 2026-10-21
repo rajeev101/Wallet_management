@@ -47,7 +47,7 @@ function StudentAddMoneyPage({ student, onLogout, refreshProfile }) {
   const [errorMessage, setErrorMessage] = useState("");
   const requestListRef = useRef(null);
 
-  const token = localStorage.getItem("cpacToken");
+  const token = sessionStorage.getItem("cpacToken");
   const batchSize = 5;
 
   const loadRequests = async () => {
