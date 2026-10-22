@@ -8,9 +8,11 @@ import VendorSidebar from "./VendorSidebar";
 import VendorTransactionsPage from "./VendorTransactionsPage";
 import { getProfile } from "../api/auth";
 
+const VENDOR_VIEWS = ["dashboard", "qr", "transactions", "settings"];
+
 const getStoredVendor = () => {
   try {
-    const user = JSON.parse(localStorage.getItem("cpacUser") || "{}");
+    const user = JSON.parse(sessionStorage.getItem("cpacUser") || "{}");
     return {
       id: user._id || user.id || "",
       name: user.name || "Campus Cafe",
@@ -34,18 +36,44 @@ const getStoredVendor = () => {
 };
 
 function VendorDashboardPage({ setPage }) {
-  const [activeView, setActiveView] = useState("dashboard");
+  const [activeView, setActiveView] = useState(() =>
+    VENDOR_VIEWS.includes(window.history.state?.vendorView)
+      ? window.history.state.vendorView
+      : "dashboard"
+  );
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [vendor, setVendor] = useState(getStoredVendor);
 
   useEffect(() => {
-    const token = localStorage.getItem("cpacToken");
+    if (!mobileNavOpen) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setMobileNavOpen(false);
+    };
+    const handleResize = () => {
+      if (!window.matchMedia("(max-width: 900px)").matches) setMobileNavOpen(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [mobileNavOpen]);
+
+  useEffect(() => {
+    const token = sessionStorage.getItem("cpacToken");
     if (!token) return;
     getProfile(token)
       .then((data) => {
         if (data.success && data.user) {
           const safeUser = { ...data.user };
           delete safeUser.password;
-          localStorage.setItem("cpacUser", JSON.stringify(safeUser));
+          sessionStorage.setItem("cpacUser", JSON.stringify(safeUser));
           setVendor({
             id: safeUser._id || safeUser.id || "",
             name: safeUser.name || "",
@@ -62,11 +90,32 @@ function VendorDashboardPage({ setPage }) {
 
 
   const handleExit = () => {
-    localStorage.removeItem("cpacToken");
-    localStorage.removeItem("cpacUserType");
-    localStorage.removeItem("cpacUser");
+    sessionStorage.removeItem("cpacToken");
+    sessionStorage.removeItem("cpacUserType");
+    sessionStorage.removeItem("cpacUser");
     setPage("login");
   };
+
+  const changeView = (view) => {
+    if (!VENDOR_VIEWS.includes(view) || view === activeView) {
+      setMobileNavOpen(false);
+      return;
+    }
+    window.history.pushState({ vendorView: view }, "", window.location.href);
+    setActiveView(view);
+    setMobileNavOpen(false);
+  };
+
+  useEffect(() => {
+    const handleVendorViewPopState = (event) => {
+      const view = event.state?.vendorView;
+      setActiveView(VENDOR_VIEWS.includes(view) ? view : "dashboard");
+      setMobileNavOpen(false);
+    };
+
+    window.addEventListener("popstate", handleVendorViewPopState);
+    return () => window.removeEventListener("popstate", handleVendorViewPopState);
+  }, []);
 
   const pageSubtitle = vendorPageCopy[activeView]?.[1] || vendorPageCopy.dashboard[1];
   const topbarTitle =
@@ -87,19 +136,40 @@ function VendorDashboardPage({ setPage }) {
           <strong>{topbarTitle}</strong>
           <span>{pageSubtitle}</span>
         </div>
+        <button
+          className="mobile-nav-toggle"
+          type="button"
+          aria-label={mobileNavOpen ? "Close navigation menu" : "Open navigation menu"}
+          aria-expanded={mobileNavOpen}
+          aria-controls="vendor-dashboard-sidebar"
+          onClick={() => setMobileNavOpen((open) => !open)}
+        >
+          <span aria-hidden="true">☰</span>
+          <span>Menu</span>
+        </button>
         <VendorTopbarActions vendor={vendor} onLogout={handleExit} />
       </header>
 
       <div className="vendor-shell">
+        {mobileNavOpen && (
+          <button
+            className="mobile-sidebar-backdrop"
+            type="button"
+            aria-label="Close navigation menu"
+            onClick={() => setMobileNavOpen(false)}
+          />
+        )}
         <VendorSidebar
           activeView={activeView}
-          onChangeView={setActiveView}
+          mobileOpen={mobileNavOpen}
+          onClose={() => setMobileNavOpen(false)}
+          onChangeView={changeView}
           onLogout={handleExit}
         />
 
         <main className="vendor-content">
           {activeView === "dashboard" && (
-            <VendorDashboardHomePage vendor={vendor} onShowTransactions={() => setActiveView("transactions")} />
+            <VendorDashboardHomePage vendor={vendor} onShowTransactions={() => changeView("transactions")} />
           )}
           {activeView === "qr" && <VendorQrCodePage vendor={vendor} />}
           {activeView === "transactions" && <VendorTransactionsPage vendor={vendor} />}

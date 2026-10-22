@@ -5,7 +5,8 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "test": "node test/auth.middleware.test.js && node test/vendor-login.test.js && node test/vendor-count.test.js"
   },
   "keywords": [],
   "author": "",

@@ -1,8 +1,15 @@
 import { Icon } from "./VendorIcon";
 
-function VendorSidebar({ activeView, onChangeView, onLogout }) {
+function VendorSidebar({ activeView, onChangeView, onLogout, mobileOpen, onClose }) {
   return (
-    <aside className="vendor-sidebar">
+    <aside
+      className={`vendor-sidebar${mobileOpen ? " mobile-open" : ""}`}
+      id="vendor-dashboard-sidebar"
+      aria-label="Vendor navigation"
+    >
+      <button className="mobile-sidebar-close" type="button" aria-label="Close navigation menu" onClick={onClose}>
+        <span aria-hidden="true">×</span>
+      </button>
       <div className="vendor-brand">
         <span className="vendor-brand-icon">
           <Icon type="wallet" />

@@ -24,7 +24,7 @@ exports.getDashboardStats = async (req, res) => {
     const [totalStudents, totalVendors, totalTransactions, transactionSummary, walletSummary] =
       await Promise.all([
         User.countDocuments({ accountType: "student" }),
-        User.countDocuments({ accountType: "vendor" }),
+        User.countDocuments({ accountType: "vendor", vendorStatus: "approved" }),
         Transaction.countDocuments(),
         Transaction.aggregate([
           { $match: { status: "completed" } },

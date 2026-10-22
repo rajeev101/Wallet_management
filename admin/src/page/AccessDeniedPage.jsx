@@ -1,8 +1,8 @@
 function AccessDeniedPage({ setPage }) {
   const handleLogout = () => {
-    localStorage.removeItem("cpacToken");
-    localStorage.removeItem("cpacUserType");
-    localStorage.removeItem("cpacUser");
+    sessionStorage.removeItem("cpacToken");
+    sessionStorage.removeItem("cpacUserType");
+    sessionStorage.removeItem("cpacUser");
     setPage("login");
   };
 

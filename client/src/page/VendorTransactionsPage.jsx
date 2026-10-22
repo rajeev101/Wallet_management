@@ -68,7 +68,7 @@ function VendorTransactionsPage({ vendor }) {
   }, []);
 
   const loadTransactions = () => {
-    const token = localStorage.getItem("cpacToken");
+    const token = sessionStorage.getItem("cpacToken");
     if (!token) return;
 
     getMyTransactions(token)

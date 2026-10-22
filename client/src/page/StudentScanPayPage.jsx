@@ -25,7 +25,7 @@ function StudentScanPayPage({ student, refreshProfile, onLogout }) {
 
     setStatus("");
     setIsSubmitting(true);
-    const token = localStorage.getItem("cpacToken");
+    const token = sessionStorage.getItem("cpacToken");
 
     try {
       const res = await getVendorById(idToFetch.trim(), token);
@@ -219,7 +219,7 @@ function StudentScanPayPage({ student, refreshProfile, onLogout }) {
     const startTime = Date.now();
 
     try {
-      const token = localStorage.getItem("cpacToken");
+      const token = sessionStorage.getItem("cpacToken");
       const res = await makePayment(
         {
           vendorId: activeVendor._id,

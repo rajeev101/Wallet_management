@@ -3,7 +3,7 @@ import { getProfile, updateProfile } from "../api/auth";
 
 const getStoredVendor = () => {
   try {
-    const storedUser = JSON.parse(localStorage.getItem("cpacUser") || "{}");
+    const storedUser = JSON.parse(sessionStorage.getItem("cpacUser") || "{}");
     return {
       id: storedUser._id || storedUser.id || "",
       name: storedUser.name || "",
@@ -72,7 +72,7 @@ function VendorSettingsPage({ vendor, onProfileChange }) {
   const photoInputRef = useRef(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("cpacToken");
+    const token = sessionStorage.getItem("cpacToken");
     if (!token) return;
 
     getProfile(token)
@@ -90,7 +90,7 @@ function VendorSettingsPage({ vendor, onProfileChange }) {
           walletBalance: safeUser.walletBalance || 0,
         };
 
-        localStorage.setItem("cpacUser", JSON.stringify(safeUser));
+        sessionStorage.setItem("cpacUser", JSON.stringify(safeUser));
         setProfile(nextVendor);
         setForm({
           name: nextVendor.name,
@@ -181,7 +181,7 @@ function VendorSettingsPage({ vendor, onProfileChange }) {
     event.preventDefault();
     setStatus({ message: "", type: "success" });
 
-    const token = localStorage.getItem("cpacToken");
+    const token = sessionStorage.getItem("cpacToken");
     if (!token) {
       setStatus({
         message: "Please login again to save profile changes.",
@@ -213,7 +213,7 @@ function VendorSettingsPage({ vendor, onProfileChange }) {
         walletBalance: safeUser.walletBalance !== undefined ? safeUser.walletBalance : profile.walletBalance,
       };
 
-      localStorage.setItem("cpacUser", JSON.stringify(safeUser));
+      sessionStorage.setItem("cpacUser", JSON.stringify(safeUser));
       setProfile(nextVendor);
       setForm({
         name: nextVendor.name,

@@ -8,9 +8,11 @@ import { Icon } from "./StudentIcon";
 import { getProfile, getMyTransactions } from "../api/auth";
 import formatStudentAmount from "./studentAmountFormatter";
 
+const STUDENT_VIEWS = ["dashboard", "scan", "transactions", "addMoney", "profile"];
+
 const getStoredStudent = () => {
   try {
-    const storedUser = JSON.parse(localStorage.getItem("cpacUser") || "{}");
+    const storedUser = JSON.parse(sessionStorage.getItem("cpacUser") || "{}");
 
     return {
       id: storedUser._id || storedUser.id || "",
@@ -32,13 +34,13 @@ const getStoredStudent = () => {
 };
 
 function StatDetailModal({ type, onClose }) {
-  const hasToken = Boolean(localStorage.getItem("cpacToken"));
+  const hasToken = Boolean(sessionStorage.getItem("cpacToken"));
   const [loading, setLoading] = useState(hasToken);
   const [error, setError] = useState(() => (hasToken ? "" : "Session expired. Please log in again."));
   const [transactions, setTransactions] = useState([]);
 
   useEffect(() => {
-    const token = localStorage.getItem("cpacToken");
+    const token = sessionStorage.getItem("cpacToken");
     if (!token) {
       return;
     }
@@ -371,19 +373,24 @@ function StatDetailModal({ type, onClose }) {
 }
 
 function StudentDashboardPage({ setPage }) {
-  const [activeView, setActiveView] = useState("dashboard");
+  const [activeView, setActiveView] = useState(() =>
+    STUDENT_VIEWS.includes(window.history.state?.studentView)
+      ? window.history.state.studentView
+      : "dashboard"
+  );
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [student, setStudent] = useState(getStoredStudent);
   const [activeModal, setActiveModal] = useState(null);
 
   const fetchLatestProfile = () => {
-    const token = localStorage.getItem("cpacToken");
+    const token = sessionStorage.getItem("cpacToken");
     if (!token) return;
     getProfile(token)
       .then((data) => {
         if (data.success && data.user) {
           const safeUser = { ...data.user };
           delete safeUser.password;
-          localStorage.setItem("cpacUser", JSON.stringify(safeUser));
+          sessionStorage.setItem("cpacUser", JSON.stringify(safeUser));
           setStudent({
             id: safeUser._id || safeUser.id || "",
             name: safeUser.name || "",
@@ -400,7 +407,7 @@ function StudentDashboardPage({ setPage }) {
   const [rawTransactions, setRawTransactions] = useState([]);
 
   const fetchRecentTransactions = () => {
-    const token = localStorage.getItem("cpacToken");
+    const token = sessionStorage.getItem("cpacToken");
     if (!token) return;
     getMyTransactions(token)
       .then((data) => {
@@ -496,17 +503,68 @@ function StudentDashboardPage({ setPage }) {
   const avgTransaction = spentCount > 0 ? totalSpent / spentCount : 0;
 
   const handleExit = () => {
-    localStorage.removeItem("cpacToken");
-    localStorage.removeItem("cpacUserType");
-    localStorage.removeItem("cpacUser");
+    sessionStorage.removeItem("cpacToken");
+    sessionStorage.removeItem("cpacUserType");
+    sessionStorage.removeItem("cpacUser");
     setPage("login");
   };
 
-  const showDashboard = () => setActiveView("dashboard");
-  const showScanner = () => setActiveView("scan");
-  const showTransactions = () => setActiveView("transactions");
-  const showAddMoney = () => setActiveView("addMoney");
-  const showProfile = () => setActiveView("profile");
+  useEffect(() => {
+    if (!mobileNavOpen) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setMobileNavOpen(false);
+    };
+    const handleResize = () => {
+      if (!window.matchMedia("(max-width: 900px)").matches) setMobileNavOpen(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [mobileNavOpen]);
+
+  const changeView = (view) => {
+    if (!STUDENT_VIEWS.includes(view) || view === activeView) {
+      setMobileNavOpen(false);
+      return;
+    }
+    window.history.pushState(
+      { ...(window.history.state || {}), studentView: view },
+      "",
+      window.location.href
+    );
+    setActiveView(view);
+    setActiveModal(null);
+    setMobileNavOpen(false);
+  };
+
+  useEffect(() => {
+    const handleStudentViewPopState = (event) => {
+      const view = event.state?.studentView;
+      if (STUDENT_VIEWS.includes(view)) {
+        setActiveView(view);
+      } else {
+        setActiveView("dashboard");
+      }
+      setActiveModal(null);
+      setMobileNavOpen(false);
+    };
+
+    window.addEventListener("popstate", handleStudentViewPopState);
+    return () => window.removeEventListener("popstate", handleStudentViewPopState);
+  }, []);
+  const showDashboard = () => changeView("dashboard");
+  const showScanner = () => changeView("scan");
+  const showTransactions = () => changeView("transactions");
+  const showAddMoney = () => changeView("addMoney");
+  const showProfile = () => changeView("profile");
 
   const pageCopy = {
     dashboard: ["Student Dashboard", "Student wallet and payment interface"],
@@ -525,11 +583,42 @@ function StudentDashboardPage({ setPage }) {
           <h1>{pageTitle}</h1>
           <p>{pageSubtitle}</p>
         </div>
+        <button
+          className="mobile-nav-toggle"
+          type="button"
+          aria-label={mobileNavOpen ? "Close navigation menu" : "Open navigation menu"}
+          aria-expanded={mobileNavOpen}
+          aria-controls="student-dashboard-sidebar"
+          onClick={() => setMobileNavOpen((open) => !open)}
+        >
+          <span aria-hidden="true">☰</span>
+          <span>Menu</span>
+        </button>
         <StudentHeader student={student} onLogout={handleExit} rightOnly />
       </header>
 
       <div className="student-shell">
-        <aside className="student-sidebar">
+        {mobileNavOpen && (
+          <button
+            className="mobile-sidebar-backdrop"
+            type="button"
+            aria-label="Close navigation menu"
+            onClick={() => setMobileNavOpen(false)}
+          />
+        )}
+        <aside
+          className={`student-sidebar${mobileNavOpen ? " mobile-open" : ""}`}
+          id="student-dashboard-sidebar"
+          aria-label="Student navigation"
+        >
+          <button
+            className="mobile-sidebar-close"
+            type="button"
+            aria-label="Close navigation menu"
+            onClick={() => setMobileNavOpen(false)}
+          >
+            <span aria-hidden="true">×</span>
+          </button>
           <div>
             <div className="student-brand">
               <span className="student-brand-icon">

@@ -4,7 +4,7 @@ import { getProfile, updateProfile } from "../api/auth";
 
 const getStoredStudent = () => {
   try {
-    const storedUser = JSON.parse(localStorage.getItem("cpacUser") || "{}");
+    const storedUser = JSON.parse(sessionStorage.getItem("cpacUser") || "{}");
 
     return {
       id: storedUser._id || storedUser.id || "",
@@ -74,7 +74,7 @@ function StudentProfilePage({ initialStudent, onProfileChange, onLogout }) {
   const photoInputRef = useRef(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("cpacToken");
+    const token = sessionStorage.getItem("cpacToken");
 
     if (!token) {
       return;
@@ -95,7 +95,7 @@ function StudentProfilePage({ initialStudent, onProfileChange, onLogout }) {
           walletBalance: safeUser.walletBalance || 0,
         };
 
-        localStorage.setItem("cpacUser", JSON.stringify(safeUser));
+        sessionStorage.setItem("cpacUser", JSON.stringify(safeUser));
         setStudent(nextStudent);
         onProfileChange?.(nextStudent);
         setProfile({
@@ -172,7 +172,7 @@ function StudentProfilePage({ initialStudent, onProfileChange, onLogout }) {
     event.preventDefault();
     setStatus({ message: "", type: "success" });
 
-    const token = localStorage.getItem("cpacToken");
+    const token = sessionStorage.getItem("cpacToken");
 
     if (!token) {
       setStatus({
@@ -204,8 +204,8 @@ function StudentProfilePage({ initialStudent, onProfileChange, onLogout }) {
         walletBalance: safeUser.walletBalance !== undefined ? safeUser.walletBalance : student.walletBalance,
       };
 
-      localStorage.setItem("cpacUser", JSON.stringify(safeUser));
-      localStorage.setItem("cpacUserType", safeUser.accountType || "student");
+      sessionStorage.setItem("cpacUser", JSON.stringify(safeUser));
+      sessionStorage.setItem("cpacUserType", safeUser.accountType || "student");
       setStudent(nextStudent);
       onProfileChange?.(nextStudent);
       setProfile({

@@ -260,7 +260,7 @@ const fallbackVendors = [
 
 const getStoredAdmin = () => {
   try {
-    return JSON.parse(localStorage.getItem("cpacUser") || "{}");
+    return JSON.parse(sessionStorage.getItem("cpacUser") || "{}");
   } catch {
     return {};
   }
@@ -347,7 +347,8 @@ const getNameInitials = (name = "Admin User") => {
 };
 
 function AdminDashboardPage({ setPage }) {
-  const [activeView, setActiveView] = useState("dashboard");
+  const [activeView, setActiveView] = useState(() => window.history.state?.adminView || "dashboard");
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [stats, setStats] = useState(null);
   const [students, setStudents] = useState([]);
   const [vendors, setVendors] = useState([]);
@@ -362,8 +363,8 @@ function AdminDashboardPage({ setPage }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [transactionTab, setTransactionTab] = useState("student");
   const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [dashboardModal, setDashboardModal] = useState(null);
-  const [selectedDashboardItem, setSelectedDashboardItem] = useState(null);
+  const [dashboardModal, setDashboardModal] = useState(() => window.history.state?.dashboardModal || null);
+  const [selectedDashboardItem, setSelectedDashboardItem] = useState(() => window.history.state?.selectedDashboardItem || null);
 
   const notifRef = useRef(null);
   const profileRef = useRef(null);
@@ -372,6 +373,39 @@ function AdminDashboardPage({ setPage }) {
   const [admin, setAdmin] = useState(getStoredAdmin);
 
   const [profileForm, setProfileForm] = useState(() => buildProfileForm(getStoredAdmin()));
+
+  const pushDashboardHistory = (state) => {
+    window.history.pushState(
+      { ...(window.history.state || {}), ...state },
+      "",
+      window.location.href
+    );
+  };
+
+  const closeDashboardModal = useCallback(() => {
+    if (window.history.state?.dashboardModal) {
+      window.history.go(window.history.state.selectedDashboardItem ? -2 : -1);
+      return;
+    }
+    setDashboardModal(null);
+    setSelectedDashboardItem(null);
+  }, []);
+
+  const selectDashboardItem = (item) => {
+    pushDashboardHistory({ selectedDashboardItem: item });
+    setSelectedDashboardItem(item);
+  };
+
+  useEffect(() => {
+    const restoreDashboardHistory = (event) => {
+      const state = event.state || {};
+      setActiveView(state.adminView || "dashboard");
+      setDashboardModal(state.dashboardModal || null);
+      setSelectedDashboardItem(state.selectedDashboardItem || null);
+    };
+    window.addEventListener("popstate", restoreDashboardHistory);
+    return () => window.removeEventListener("popstate", restoreDashboardHistory);
+  }, []);
 
   useEffect(() => {
     activeViewRef.current = activeView;
@@ -464,7 +498,7 @@ function AdminDashboardPage({ setPage }) {
 
   useEffect(() => {
     const loadProfile = async () => {
-      const token = localStorage.getItem("cpacToken");
+      const token = sessionStorage.getItem("cpacToken");
 
       if (!token) return;
 
@@ -475,7 +509,7 @@ function AdminDashboardPage({ setPage }) {
 
         setAdmin(safeUser);
         setProfileForm(buildProfileForm(safeUser));
-        localStorage.setItem("cpacUser", JSON.stringify(safeUser));
+        sessionStorage.setItem("cpacUser", JSON.stringify(safeUser));
       } catch (profileError) {
         console.error("Failed to load admin profile:", profileError);
       }
@@ -485,7 +519,7 @@ function AdminDashboardPage({ setPage }) {
   }, []);
 
   useEffect(() => {
-    if (!localStorage.getItem("cpacToken")) return undefined;
+    if (!sessionStorage.getItem("cpacToken")) return undefined;
 
     const loadNotifications = async () => {
       try {
@@ -515,8 +549,7 @@ function AdminDashboardPage({ setPage }) {
       if (event.key === "Escape") {
         setIsNotifOpen(false);
         setIsProfileOpen(false);
-        setDashboardModal(null);
-        setSelectedDashboardItem(null);
+        closeDashboardModal();
       }
     }
 
@@ -527,7 +560,7 @@ function AdminDashboardPage({ setPage }) {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleEscape);
     };
-  }, []);
+  }, [closeDashboardModal]);
 
   useEffect(() => {
     if (!dashboardModal) return undefined;
@@ -539,6 +572,27 @@ function AdminDashboardPage({ setPage }) {
       document.body.style.overflow = previousOverflow;
     };
   }, [dashboardModal]);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setMobileNavOpen(false);
+    };
+    const handleResize = () => {
+      if (!window.matchMedia("(max-width: 900px)").matches) setMobileNavOpen(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [mobileNavOpen]);
 
   const handleSearch = (event) => {
     event.preventDefault();
@@ -571,9 +625,9 @@ function AdminDashboardPage({ setPage }) {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("cpacToken");
-    localStorage.removeItem("cpacUserType");
-    localStorage.removeItem("cpacUser");
+    sessionStorage.removeItem("cpacToken");
+    sessionStorage.removeItem("cpacUserType");
+    sessionStorage.removeItem("cpacUser");
     setPage("admin-login");
   };
 
@@ -605,7 +659,7 @@ function AdminDashboardPage({ setPage }) {
     event.preventDefault();
     clearAlerts();
 
-    const token = localStorage.getItem("cpacToken");
+    const token = sessionStorage.getItem("cpacToken");
 
     if (!token) {
       showError("Please login again to save profile changes.");
@@ -627,7 +681,7 @@ function AdminDashboardPage({ setPage }) {
 
       setAdmin(safeUser);
       setProfileForm(buildProfileForm(safeUser));
-      localStorage.setItem("cpacUser", JSON.stringify(safeUser));
+      sessionStorage.setItem("cpacUser", JSON.stringify(safeUser));
       setIsEditingProfile(false);
       showMessage("Profile updated successfully.");
     } catch (saveError) {
@@ -672,7 +726,7 @@ function AdminDashboardPage({ setPage }) {
     {
       type: "vendors",
       label: "Total Vendors",
-      value: formatNumber(stats?.totalVendors ?? vendors.length),
+      value: formatNumber(stats?.totalVendors ?? vendors.filter((vendor) => vendor.vendorStatus === "approved").length),
       trend: "5% vs last month",
       icon: "store",
       tone: "cyan",
@@ -814,24 +868,47 @@ function AdminDashboardPage({ setPage }) {
   });
 
   const openDashboardModal = (type) => {
+    pushDashboardHistory({ dashboardModal: type, selectedDashboardItem: null });
     setSelectedDashboardItem(null);
     setDashboardModal(type);
   };
 
   const navigateToView = (view) => {
+    if (view === activeView && !dashboardModal) return;
+    pushDashboardHistory({
+      adminView: view,
+      dashboardModal: null,
+      selectedDashboardItem: null,
+    });
     setDashboardModal(null);
     setSelectedDashboardItem(null);
     setActiveView(view);
-  };
-
-  const closeDashboardModal = () => {
-    setDashboardModal(null);
-    setSelectedDashboardItem(null);
+    setMobileNavOpen(false);
   };
 
   return (
     <div className="admin-dashboard-page">
-      <aside className="admin-sidebar">
+      {mobileNavOpen && (
+        <button
+          className="mobile-sidebar-backdrop"
+          type="button"
+          aria-label="Close navigation menu"
+          onClick={() => setMobileNavOpen(false)}
+        />
+      )}
+      <aside
+        className={`admin-sidebar${mobileNavOpen ? " mobile-open" : ""}`}
+        id="admin-dashboard-sidebar"
+        aria-label="Admin navigation"
+      >
+        <button
+          className="mobile-sidebar-close"
+          type="button"
+          aria-label="Close navigation menu"
+          onClick={() => setMobileNavOpen(false)}
+        >
+          <span aria-hidden="true">×</span>
+        </button>
         <div className="admin-brand">
           <span className="admin-brand-icon">
             <AdminIcon type="wallet" />
@@ -892,6 +969,18 @@ function AdminDashboardPage({ setPage }) {
             </h1>
             <p>{activeView === "students" ? "Manage students and wallet balances" : today}</p>
           </div>
+
+          <button
+            className="mobile-nav-toggle"
+            type="button"
+            aria-label={mobileNavOpen ? "Close navigation menu" : "Open navigation menu"}
+            aria-expanded={mobileNavOpen}
+            aria-controls="admin-dashboard-sidebar"
+            onClick={() => setMobileNavOpen((open) => !open)}
+          >
+            <span aria-hidden="true">☰</span>
+            <span>Menu</span>
+          </button>
 
           <div className="admin-navbar-actions">
             <div className="notification-wrapper" ref={notifRef}>
@@ -1468,8 +1557,8 @@ function AdminDashboardPage({ setPage }) {
             vendors={vendors}
             transactions={transactions}
             selectedItem={selectedDashboardItem}
-            onSelect={setSelectedDashboardItem}
-            onBack={() => setSelectedDashboardItem(null)}
+            onSelect={selectDashboardItem}
+            onBack={() => window.history.back()}
             onClose={closeDashboardModal}
             getVendorSales={getVendorSales}
             getVendorTransactionRecords={getVendorTransactionRecords}
