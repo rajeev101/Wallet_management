@@ -49,8 +49,8 @@ export const updateProfile = (payload, token) =>
 export const createWalletRequest = (payload, token) =>
   request("/auth/wallet/request", payload, { method: "POST", token });
 
-export const getWalletRequests = (token) =>
-  request("/auth/wallet/requests", undefined, { method: "GET", token });
+export const getWalletRequests = (token, page = 1, limit = 5) =>
+  request(`/auth/wallet/requests?page=${page}&limit=${limit}`, undefined, { method: "GET", token });
 
 export const makePayment = (payload, token) =>
   request("/auth/pay", payload, { method: "POST", token });

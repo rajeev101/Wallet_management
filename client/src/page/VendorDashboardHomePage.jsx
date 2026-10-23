@@ -688,6 +688,7 @@ function VendorDashboardHomePage({ vendor, onShowTransactions }) {
     <>
       <section className="vendor-stats-grid" aria-label="Vendor sales statistics">
         <article style={{ cursor: "pointer" }} onClick={() => openModal("today")}>
+          <span className="vendor-stat-symbol cart" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h8.9a2 2 0 0 0 1.9-1.4L22 9H7" /><circle cx="10" cy="21" r="1" /><circle cx="18" cy="21" r="1" /></svg></span>
           <div>
             <span>Today's Sales</span>
             <strong>{stats.todaySales}</strong>
@@ -695,22 +696,23 @@ function VendorDashboardHomePage({ vendor, onShowTransactions }) {
           </div>
         </article>
         <article style={{ cursor: "pointer" }} onClick={() => openModal("month")}>
+          <span className="vendor-stat-symbol month" aria-hidden="true"><Icon type="calendar" /></span>
           <div>
             <span>This Month</span>
             <strong>{stats.monthSales}</strong>
             <em><Icon type="trend" />Dynamic</em>
           </div>
-          <Icon type="calendar" />
         </article>
         <article style={{ cursor: "pointer" }} onClick={() => openModal("total")}>
+          <span className="vendor-stat-symbol total" aria-hidden="true"><Icon type="swap" /></span>
           <div>
             <span>Total Transactions</span>
             <strong>{stats.totalTransactions}</strong>
             <em><Icon type="trend" />Dynamic</em>
           </div>
-          <Icon type="bag" />
         </article>
         <article style={{ cursor: "pointer" }} onClick={() => openModal("avg")}>
+          <span className="vendor-stat-symbol average" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 20V12M12 20V5M19 20V9" /></svg></span>
           <div>
             <span>Avg. Order Value</span>
             <strong>{stats.avgOrderValue}</strong>
@@ -743,6 +745,17 @@ function VendorDashboardHomePage({ vendor, onShowTransactions }) {
           <div style={{ margin: "10px 0 20px 0", fontSize: "14px", color: "#4a5568" }}>
             <strong>Your Vendor ID:</strong> <code style={{ background: "#edf2f7", padding: "4px 8px", borderRadius: "4px" }}>{vendor?.id || vendor?._id || "Loading..."}</code>
           </div>
+        </div>
+        <div className="vendor-qr-art" aria-hidden="true">
+          <span className="vendor-phone-orbit vendor-phone-orbit-one" />
+          <span className="vendor-phone-orbit vendor-phone-orbit-two" />
+          <span className="vendor-phone">
+            <span className="vendor-phone-speaker" />
+            <span className="vendor-phone-screen"><i /><i /><i /><i /><i /><i /><i /><i /><i /></span>
+            <span className="vendor-phone-scan" />
+          </span>
+          <span className="vendor-qr-coin qr-coin-one">₹</span>
+          <span className="vendor-qr-coin qr-coin-two">₹</span>
         </div>
       </section>
 
