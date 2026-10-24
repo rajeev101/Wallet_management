@@ -1080,6 +1080,28 @@ function AdminDashboardPage({ setPage }) {
           <>
             {activeView === "dashboard" && (
               <>
+                <section className="admin-welcome-banner" aria-label="Welcome to Campus Wallet administration">
+                  <div className="admin-welcome-copy">
+                    <p>Welcome back, Admin</p>
+                    <h2>Manage Your Campus Wallet</h2>
+                    <span>Track students, vendors, transactions and wallet activities in one place.</span>
+                  </div>
+                  <div className="admin-welcome-art" aria-hidden="true">
+                    <span className="admin-art-orbit admin-art-orbit-one" />
+                    <span className="admin-art-orbit admin-art-orbit-two" />
+                    <span className="admin-chart-plate"><i /><i /><i /></span>
+                    <span className="admin-art-wallet"><i /><b /></span>
+                    <span className="admin-rupee-coin admin-coin-one">₹</span>
+                    <span className="admin-rupee-coin admin-coin-two">₹</span>
+                    <span className="admin-rupee-coin admin-coin-three">₹</span>
+                  </div>
+                  <div className="admin-welcome-date">
+                    <span className="admin-calendar-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18M8 14h3v3H8z" /></svg>
+                    </span>
+                    <div><small>Today</small><strong>{today}</strong><span>Have a great day!</span></div>
+                  </div>
+                </section>
                 <section className="admin-stats-grid" aria-label="Dashboard statistics">
                   {statCards.map((card) => (
                     <article

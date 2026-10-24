@@ -40,58 +40,131 @@ const formatDisplayAmount = (value) => {
 function StudentAddMoneyPage({ student, onLogout, refreshProfile }) {
   const [topUpAmount, setTopUpAmount] = useState("");
   const [requests, setRequests] = useState([]);
-  const [visibleRequests, setVisibleRequests] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [hasMoreRequests, setHasMoreRequests] = useState(true);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const requestListRef = useRef(null);
+  const requestSentinelRef = useRef(null);
+  const loadingRef = useRef(false);
+  const hasMoreRef = useRef(true);
+  const nextPageRef = useRef(1);
+  const loadedRequestIdsRef = useRef(new Set());
+  const historyErrorRef = useRef(false);
 
   const token = sessionStorage.getItem("cpacToken");
   const batchSize = 5;
 
-  const loadRequests = async () => {
-    try {
-      if (!token) return;
-      const res = await getWalletRequests(token);
-      if (res.success) {
-        const allRequests = res.requests || [];
-        setRequests(allRequests);
-        setVisibleRequests(allRequests.slice(0, batchSize));
-      }
-    } catch (err) {
-      console.error("Failed to load wallet requests:", err);
-    }
-  };
-
-  const handleLoadMoreRequests = () => {
-    if (loadingMore || visibleRequests.length >= requests.length) {
+  const loadRequests = async ({ reset = false } = {}) => {
+    if (loadingRef.current || (!reset && !hasMoreRef.current)) return;
+    if (!token) {
+      setHistoryError("Your session has expired. Please log in again.");
+      setHistoryLoading(false);
       return;
     }
 
-    setLoadingMore(true);
-    window.setTimeout(() => {
-      const nextVisibleCount = Math.min(visibleRequests.length + batchSize, requests.length);
-      setVisibleRequests(requests.slice(0, nextVisibleCount));
-      setLoadingMore(false);
-    }, 200);
+    loadingRef.current = true;
+    if (reset) {
+      setHistoryLoading(true);
+      setHistoryError("");
+      historyErrorRef.current = false;
+      nextPageRef.current = 1;
+      hasMoreRef.current = true;
+      setHasMoreRequests(true);
+    } else {
+      setLoadingMore(true);
+      setHistoryError("");
+    }
+
+    try {
+      const page = reset ? 1 : nextPageRef.current;
+      const res = await getWalletRequests(token, page, batchSize);
+      if (!res.success) throw new Error(res.message || "Unable to load request history.");
+
+      const batch = res.requests || [];
+      if (reset) {
+        loadedRequestIdsRef.current = new Set(batch.map((item) => item._id || item.id));
+        setRequests(batch);
+        if (requestListRef.current) requestListRef.current.scrollTop = 0;
+      } else {
+        const uniqueBatch = batch.filter((item) => {
+          const id = item._id || item.id;
+          if (!id || loadedRequestIdsRef.current.has(id)) return false;
+          loadedRequestIdsRef.current.add(id);
+          return true;
+        });
+        if (uniqueBatch.length) setRequests((current) => [...current, ...uniqueBatch]);
+        if (!uniqueBatch.length && batch.length) hasMoreRef.current = false;
+      }
+      nextPageRef.current = page + 1;
+      hasMoreRef.current = hasMoreRef.current && Boolean(res.hasMore) && batch.length > 0;
+      setHasMoreRequests(hasMoreRef.current);
+      historyErrorRef.current = false;
+      setHistoryError("");
+    } catch (err) {
+      console.error("Failed to load wallet requests:", err);
+      historyErrorRef.current = true;
+      setHistoryError(err.message || "Failed to load request history.");
+    } finally {
+      loadingRef.current = false;
+      if (reset) setHistoryLoading(false);
+      else setLoadingMore(false);
+    }
   };
 
-  const handleRequestListScroll = (event) => {
-    const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
-    if (scrollHeight - scrollTop - clientHeight <= 20) {
-      handleLoadMoreRequests();
-    }
+  const loadMoreRef = useRef(null);
+  loadMoreRef.current = () => {
+    if (!historyErrorRef.current) loadRequests();
+  };
+
+  const retryHistoryLoad = () => {
+    historyErrorRef.current = false;
+    if (requests.length) loadRequests();
+    else loadRequests({ reset: true });
   };
 
   useEffect(() => {
-    Promise.resolve().then(() => {
-      loadRequests();
-    });
+    const list = requestListRef.current;
+    const sentinel = requestSentinelRef.current;
+    if (!list) return undefined;
+
+    const handleScroll = () => {
+      if (list.scrollHeight - list.scrollTop - list.clientHeight <= 100) {
+        loadMoreRef.current?.();
+      }
+    };
+    list.addEventListener("scroll", handleScroll, { passive: true });
+
+    const observer = sentinel && "IntersectionObserver" in window
+      ? new IntersectionObserver((entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) loadMoreRef.current?.();
+      }, { root: list, rootMargin: "0px 0px 100px 0px" })
+      : null;
+    if (observer) observer.observe(sentinel);
+
+    loadRequests({ reset: true });
     if (refreshProfile) {
       refreshProfile();
     }
+
+    return () => {
+      list.removeEventListener("scroll", handleScroll);
+      observer?.disconnect();
+    };
   }, []);
+
+  useEffect(() => {
+    const list = requestListRef.current;
+    if (historyLoading || loadingMore || historyError || !hasMoreRequests || !list) return undefined;
+    if (list.scrollHeight - list.clientHeight <= 100) {
+      const frame = window.requestAnimationFrame(() => loadMoreRef.current?.());
+      return () => window.cancelAnimationFrame(frame);
+    }
+    return undefined;
+  }, [requests.length, historyLoading, loadingMore, historyError, hasMoreRequests]);
 
   const sanitizeTopUpAmount = (value) => value.replace(/\D/g, "").slice(0, 10);
 
@@ -116,7 +189,7 @@ function StudentAddMoneyPage({ student, onLogout, refreshProfile }) {
       if (res.success) {
         setSuccessMessage("Your add money request has been submitted to the admin.");
         setTopUpAmount("");
-        await loadRequests();
+        await loadRequests({ reset: true });
       }
     } catch (err) {
       setErrorMessage(err.message || "Failed to submit request");
@@ -182,9 +255,11 @@ function StudentAddMoneyPage({ student, onLogout, refreshProfile }) {
 
         <div className="request-history-card">
           <h2>Request History</h2>
-          <div className="request-list" ref={requestListRef} onScroll={handleRequestListScroll}>
-            {visibleRequests.length > 0 ? (
-              visibleRequests.map((req) => (
+          <div className="request-list" ref={requestListRef} tabIndex={0} aria-label="Request history">
+            {historyLoading ? (
+              <div className="request-list-loading" role="status"><span className="request-list-spinner" />Loading requests...</div>
+            ) : requests.length > 0 ? (
+              requests.map((req) => (
                 <article key={req._id || req.id} className="request-item">
                   <div>
                     <strong>{formatDisplayAmount(req.amount)}</strong>
@@ -203,7 +278,17 @@ function StudentAddMoneyPage({ student, onLogout, refreshProfile }) {
                 No request history found.
               </p>
             )}
-            {loadingMore && <div className="request-list-loading">Loading...</div>}
+            {loadingMore && <div className="request-list-loading" role="status"><span className="request-list-spinner" />Loading more requests...</div>}
+            {!historyLoading && historyError && (
+              <div className="request-list-error" role="alert">
+                <span>{historyError}</span>
+                <button type="button" onClick={retryHistoryLoad}>Retry</button>
+              </div>
+            )}
+            {!historyLoading && !historyError && requests.length > 0 && !hasMoreRequests && (
+              <div className="request-list-end">No more requests</div>
+            )}
+            <div className="request-list-sentinel" ref={requestSentinelRef} aria-hidden="true" />
           </div>
         </div>
       </div>

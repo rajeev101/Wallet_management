@@ -632,6 +632,8 @@ exports.createWalletRequest = async (req, res) => {
 exports.getStudentWalletRequests = async (req, res) => {
   try {
     const userId = req.user?.userId;
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, Number.parseInt(req.query.limit, 10) || 5));
 
     if (!userId) {
       return res.status(401).json({
@@ -645,6 +647,9 @@ exports.getStudentWalletRequests = async (req, res) => {
       return res.status(200).json({
         success: true,
         requests: [],
+        page,
+        limit,
+        hasMore: false,
       });
     }
 
@@ -656,9 +661,12 @@ exports.getStudentWalletRequests = async (req, res) => {
         path: "toWallet",
         populate: { path: "owner", select: "name email" }
       })
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit + 1);
 
-    const formattedRequests = requests.map(reqObj => {
+    const hasMore = requests.length > limit;
+    const formattedRequests = requests.slice(0, limit).map(reqObj => {
       const r = reqObj.toObject();
       r.student = r.toWallet?.owner;
       return r;
@@ -667,6 +675,9 @@ exports.getStudentWalletRequests = async (req, res) => {
     res.status(200).json({
       success: true,
       requests: formattedRequests,
+      page,
+      limit,
+      hasMore,
     });
   } catch (error) {
     res.status(500).json({

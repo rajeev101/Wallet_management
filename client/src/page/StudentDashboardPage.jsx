@@ -684,19 +684,35 @@ function StudentDashboardPage({ setPage }) {
           {activeView === "dashboard" && !activeModal && (
             <>
               <section className="balance-panel" aria-label="Wallet balance">
+                <div className="balance-copy">
                 <div>
                   <p>Available Balance</p>
                   <strong>{formatStudentAmount(Number(student.walletBalance || 0))}</strong>
                 </div>
-                <Icon type="wallet" />
+                </div>
+                <div className="wallet-art" aria-hidden="true">
+                  <span className="wallet-orbit wallet-orbit-one" />
+                  <span className="wallet-orbit wallet-orbit-two" />
+                  <span className="rupee-coin coin-one">₹</span>
+                  <span className="rupee-coin coin-two">₹</span>
+                  <span className="rupee-coin coin-three">₹</span>
+                  <span className="wallet-illustration">
+                    <span className="wallet-opening" />
+                    <span className="wallet-flap" />
+                    <span className="wallet-pocket" />
+                    <span className="wallet-clasp" />
+                  </span>
+                </div>
                 <div className="balance-actions">
                   <button className="scan-button" type="button" onClick={showScanner}>
                     <Icon type="qr" />
                     Scan to Pay
+                    <svg className="balance-action-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
                   </button>
                   <button className="add-button" type="button" onClick={showAddMoney}>
                     <Icon type="plus" />
                     Add Money
+                    <svg className="balance-action-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
                   </button>
                 </div>
               </section>
@@ -712,7 +728,7 @@ function StudentDashboardPage({ setPage }) {
                     <strong>{formatStudentAmount(totalSpent)}</strong>
                     <span>{spentCount} transactions</span>
                   </div>
-                  <span className="stat-icon spent"><Icon type="up" /></span>
+                  <span className="stat-icon spent"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 19V11M12 19V5M19 19V9" /></svg></span>
                 </article>
                 <article 
                   className="stat-card" 
@@ -724,7 +740,7 @@ function StudentDashboardPage({ setPage }) {
                     <strong>{formatStudentAmount(totalAdded)}</strong>
                     <span>{addedCount} recharges</span>
                   </div>
-                  <span className="stat-icon added"><Icon type="down" /></span>
+                  <span className="stat-icon added"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg></span>
                 </article>
                 <article 
                   className="stat-card" 
