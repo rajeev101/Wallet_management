@@ -36,9 +36,19 @@ if ! command -v mongod &> /dev/null; then
 
     # Detect Ubuntu version codename
     UBUNTU_CODENAME=$(lsb_release -cs 2>/dev/null || echo "jammy")
-    # MongoDB 7.0 repo
-    echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu ${UBUNTU_CODENAME}/mongodb-org/7.0 multiverse" | \
-       tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+    if [ "$UBUNTU_CODENAME" = "noble" ]; then
+        curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | \
+           gpg -o /usr/share/keyrings/mongodb-server-8.0.gpg \
+           --dearmor --yes
+        echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu noble/mongodb-org/8.0 multiverse" | \
+           tee /etc/apt/sources.list.d/mongodb-org-8.0.list
+    else
+        curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc | \
+           gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg \
+           --dearmor --yes
+        echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu ${UBUNTU_CODENAME}/mongodb-org/7.0 multiverse" | \
+           tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+    fi
 
     apt-get update -y
     apt-get install -y mongodb-org || {
