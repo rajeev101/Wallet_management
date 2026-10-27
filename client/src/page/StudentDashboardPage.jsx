@@ -688,8 +688,25 @@ function StudentDashboardPage({ setPage }) {
                 <div>
                   <p>Available Balance</p>
                   <strong>{formatStudentAmount(Number(student.walletBalance || 0))}</strong>
+                  <svg className="balance-chip" role="img" aria-label="Payment card chip" viewBox="0 0 56 40">
+                    <defs>
+                      <linearGradient id="balance-chip-gold" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0" stopColor="#FFF3A6" />
+                        <stop offset="0.48" stopColor="#F6C94C" />
+                        <stop offset="1" stopColor="#D99220" />
+                      </linearGradient>
+                    </defs>
+                    <rect x="1" y="1" width="54" height="38" rx="8" fill="url(#balance-chip-gold)" stroke="#FFF0A0" strokeWidth="2" />
+                    <path d="M19 2v10l-7 6v5l7 5v10M37 2v10l7 6v5l-7 5v10M2 18h10m-10 5h10m32-5h10m-10 5h10M19 12h18v16H19z" fill="none" stroke="#D99A2B" strokeWidth="1.8" strokeLinejoin="round" />
+                    <path d="M20 13h16v14H20z" fill="rgba(255,248,198,.28)" stroke="rgba(255,255,255,.62)" strokeWidth="1" />
+                  </svg>
                 </div>
                 </div>
+                <svg className="contactless-icon" role="img" aria-label="Contactless payment" viewBox="0 0 48 48">
+                  <path d="M11 17a10 10 0 0 1 0 14" />
+                  <path d="M20 11a19 19 0 0 1 0 26" />
+                  <path d="M29 6a27 27 0 0 1 0 36" />
+                </svg>
                 <div className="wallet-art" aria-hidden="true">
                   <span className="wallet-orbit wallet-orbit-one" />
                   <span className="wallet-orbit wallet-orbit-two" />
@@ -716,6 +733,34 @@ function StudentDashboardPage({ setPage }) {
                   </button>
                 </div>
               </section>
+
+              <article className="mapa-promo-card" aria-label="Explore MA-PA: Shop, Order, Services, and More">
+                <svg className="mapa-promo-bag" aria-hidden="true" viewBox="0 0 72 72">
+                  <defs>
+                    <linearGradient id="mapa-bag-gradient" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0" stopColor="#7B2CFF" />
+                      <stop offset="0.48" stopColor="#F000D8" />
+                      <stop offset="1" stopColor="#FF8A00" />
+                    </linearGradient>
+                    <linearGradient id="mapa-handle-gradient" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0" stopColor="#7A27FF" />
+                      <stop offset="1" stopColor="#E000D8" />
+                    </linearGradient>
+                  </defs>
+                  <path d="M23 27v-7a13 13 0 0 1 26 0v7" fill="none" stroke="url(#mapa-handle-gradient)" strokeWidth="5" strokeLinecap="round" />
+                  <path d="M14 27h44l5 34a5 5 0 0 1-5 6H14a5 5 0 0 1-5-6l5-34Z" fill="url(#mapa-bag-gradient)" />
+                  <path d="M17 32h37l-4 29H13l4-29Z" fill="rgba(255,255,255,.16)" />
+                  <path d="M19 29h5v5h-5zm29 0h5v5h-5z" fill="#FFD34F" />
+                </svg>
+                <span className="mapa-promo-divider" aria-hidden="true" />
+                <span className="mapa-promo-copy">
+                  <strong>Explore MA-PA</strong>
+                  <span>Shop • Order • Services • More</span>
+                </span>
+                <span className="mapa-promo-arrow" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                </span>
+              </article>
 
               <section className="stats-grid" aria-label="Wallet statistics">
                 <article 

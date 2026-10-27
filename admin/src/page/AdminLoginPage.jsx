@@ -40,6 +40,10 @@ function AdminLoginPage({ setPage }) {
       const safeUser = { ...(data.user || {}) };
       delete safeUser.password;
 
+      if (!data?.success || !data.token || !safeUser.accountType) {
+        throw new Error(data?.message || "Unable to sign in. Please try again.");
+      }
+
       if (safeUser.accountType !== "admin") {
         setStatus("Access denied. Admin credentials are required.");
         sessionStorage.removeItem("cpacToken");
@@ -49,7 +53,7 @@ function AdminLoginPage({ setPage }) {
       }
 
       sessionStorage.setItem("cpacToken", data.token);
-      sessionStorage.setItem("cpacUserType", "admin");
+      sessionStorage.setItem("cpacUserType", safeUser.accountType);
       sessionStorage.setItem("cpacUser", JSON.stringify(safeUser));
       setPage("admin-dashboard");
     } catch (error) {
