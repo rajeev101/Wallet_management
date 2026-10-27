@@ -16,6 +16,8 @@ function StudentScanPayPage({ student, refreshProfile, onLogout }) {
   const [cameraPermission, setCameraPermission] = useState("prompt");
 
   const qrCodeScannerRef = useRef(null);
+  const scannerStartingRef = useRef(false);
+  const scanHandledRef = useRef(false);
 
   const handleFetchVendor = async (idToFetch) => {
     if (!idToFetch || idToFetch.trim().length !== 24) {
@@ -56,84 +58,86 @@ function StudentScanPayPage({ student, refreshProfile, onLogout }) {
     }
   };
 
-  const requestCameraPermission = async () => {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      stream.getTracks().forEach((track) => track.stop());
-      setCameraPermission("granted");
-      return true;
-    } catch (err) {
-      console.warn("Camera permission denied or unavailable:", err);
-      setCameraPermission("denied");
-      return false;
-    }
-  };
-
   const startCamera = async () => {
-    // Prompt permission first to give clearer UX
-    await requestCameraPermission();
+    if (cameraActive || scannerStartingRef.current) return;
+    scannerStartingRef.current = true;
+    scanHandledRef.current = false;
+    setStatus("");
     setCameraActive(true);
   };
 
-  const stopCamera = async () => {
+  const stopCamera = () => {
+    scannerStartingRef.current = false;
     setCameraActive(false);
-
-    if (qrCodeScannerRef.current) {
-      try {
-        if (qrCodeScannerRef.current.isScanning) {
-          await qrCodeScannerRef.current.stop();
-        }
-        if (typeof qrCodeScannerRef.current.clear === "function") {
-          await qrCodeScannerRef.current.clear();
-        }
-      } catch (err) {
-        console.error("Failed to stop/clear camera:", err);
-      }
-      qrCodeScannerRef.current = null;
-    }
-
-    const activeVideo = document.querySelector("#qr-reader video");
-    if (activeVideo?.srcObject) {
-      activeVideo.srcObject.getTracks().forEach((track) => track.stop());
-      activeVideo.srcObject = null;
-    }
   };
 
   useEffect(() => {
     if (!qrScanned) {
       const timer = setTimeout(() => {
-        startCamera();
+        if (scannerStartingRef.current) return;
+        scannerStartingRef.current = true;
+        scanHandledRef.current = false;
+        setStatus("");
+        setCameraActive(true);
       }, 100);
       return () => clearTimeout(timer);
     }
   }, [qrScanned]);
 
   useEffect(() => {
+    let cancelled = false;
     let html5QrCode = null;
-    let startedWithCameraId = null;
+    let startupPromise = null;
+    let cleanupPromise = null;
+
+    const cleanupScanner = () => {
+      if (cleanupPromise) return cleanupPromise;
+      cleanupPromise = (async () => {
+        if (!html5QrCode) return;
+        if (startupPromise) {
+          try {
+            await startupPromise;
+          } catch {
+            // Startup failure is surfaced by initCamera; cleanup still follows.
+          }
+        }
+        try {
+          if (html5QrCode.isScanning) await html5QrCode.stop();
+        } catch (err) {
+          console.warn("Failed to stop QR scanner:", err);
+        }
+        try {
+          if (typeof html5QrCode.clear === "function") await html5QrCode.clear();
+        } catch (err) {
+          console.warn("Failed to clear QR scanner:", err);
+        }
+        if (qrCodeScannerRef.current === html5QrCode) {
+          qrCodeScannerRef.current = null;
+        }
+      })();
+      return cleanupPromise;
+    };
 
     const initCamera = async () => {
       if (cameraActive && !qrScanned) {
         try {
-          // Allow DOM to update and render the qr-reader div
-          await new Promise((resolve) => setTimeout(resolve, 50));
-
           const element = document.getElementById("qr-reader");
           if (!element) {
-            console.error("qr-reader element not found in DOM");
-            setCameraActive(false);
+            throw new Error("Scanner is unavailable. Close and reopen Scan to Pay.");
+          }
+
+          if (qrCodeScannerRef.current) {
             return;
           }
 
+          const cameraId = await selectCameraId();
+          if (cancelled) return;
+
           html5QrCode = new Html5Qrcode("qr-reader");
           qrCodeScannerRef.current = html5QrCode;
-
-          const cameraId = await selectCameraId();
-
           const cameraFacingOrId = cameraId || { facingMode: "environment" };
 
-          await html5QrCode.start(
+          startupPromise = html5QrCode.start(
             cameraFacingOrId,
             {
               fps: 10,
@@ -143,55 +147,50 @@ function StudentScanPayPage({ student, refreshProfile, onLogout }) {
               }
             },
             async (decodedText) => {
-              try {
-                if (html5QrCode && html5QrCode.isScanning) {
-                  await html5QrCode.stop();
-                }
-              } catch (err) {
-                console.error("Failed to stop camera:", err);
-              }
+              if (scanHandledRef.current || cancelled) return;
+              scanHandledRef.current = true;
+              scannerStartingRef.current = false;
               setCameraActive(false);
-              handleFetchVendor(decodedText);
+              void handleFetchVendor(decodedText);
             },
             () => {
               // ignore scan errors
             }
           );
+          await startupPromise;
 
-          startedWithCameraId = cameraId;
-          setCameraPermission("granted");
-        } catch (err) {
-          console.error("Error starting camera:", err);
-          setCameraActive(false);
-          setCameraPermission("denied");
-          // cleanup partial instance
-          try {
-            if (html5QrCode) {
-              if (html5QrCode.isScanning) await html5QrCode.stop();
-              if (typeof html5QrCode.clear === "function") await html5QrCode.clear();
-            }
-          } catch (e) {
-            console.error("Cleanup after start failure failed:", e);
+          if (cancelled) {
+            await cleanupScanner();
+            return;
           }
+          setCameraPermission("granted");
+          scannerStartingRef.current = false;
+        } catch (err) {
+          if (!cancelled) {
+            console.error("Error starting camera:", err);
+            const errorText = `${err?.name || ""} ${err?.message || err || ""}`;
+            const permissionFailure = ["NotAllowedError", "PermissionDeniedError", "SecurityError"]
+              .includes(err?.name) || /permission|notallowed|secure context/i.test(errorText);
+            setCameraPermission(permissionFailure ? "denied" : "prompt");
+            setStatus(permissionFailure
+              ? "Camera access was blocked. Allow camera access in Chrome and use a secure HTTPS connection, then retry."
+              : err?.name === "NotFoundError" || err?.name === "DevicesNotFoundError"
+                ? "No camera was found. Connect or enable a camera, then retry."
+                : err?.message || (typeof err === "string" ? err : "Could not start the camera. Check camera access and retry."));
+            setCameraActive(false);
+          }
+          scannerStartingRef.current = false;
+          await cleanupScanner();
         }
       }
     };
 
-    initCamera();
+    void initCamera();
 
     return () => {
-      // cleanup
-      if (html5QrCode) {
-        (async () => {
-          try {
-            if (html5QrCode.isScanning) await html5QrCode.stop();
-            if (typeof html5QrCode.clear === "function") await html5QrCode.clear();
-          } catch (err) {
-            console.error("Error during cleanup stop/clear:", err);
-          }
-        })();
-      }
-      qrCodeScannerRef.current = null;
+      cancelled = true;
+      scannerStartingRef.current = false;
+      void cleanupScanner();
     };
   }, [cameraActive, qrScanned]);
 

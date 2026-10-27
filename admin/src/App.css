@@ -806,7 +806,7 @@
   margin: 0 -32px 28px;
   padding: 20px 32px;
   border-bottom: 1px solid #dfe6f0;
-  background: #ffffff;
+  background: linear-gradient(180deg, #62B5FF 0%, #B8DCFF 55%, #EAF5FF 100%);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 

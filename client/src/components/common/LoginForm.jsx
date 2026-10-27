@@ -30,17 +30,18 @@ function LoginForm({ setPage }) {
 
     try {
       const data = await loginUser(form);
+      if (!data?.success || !data.token || !data.user) {
+        throw new Error(data?.message || "Unable to sign in. Please try again.");
+      }
       const safeUser = { ...(data.user || {}) };
       delete safeUser.password;
+      if (!["student", "vendor"].includes(safeUser.accountType)) {
+        throw new Error("This account type cannot sign in here.");
+      }
       sessionStorage.setItem("cpacToken", data.token);
-      sessionStorage.setItem("cpacUserType", safeUser.accountType || "student");
+      sessionStorage.setItem("cpacUserType", safeUser.accountType);
       sessionStorage.setItem("cpacUser", JSON.stringify(safeUser));
-      setStatus("Login successful.");
-      setPage(
-        safeUser.accountType === "vendor"
-            ? "vendor-dashboard"
-            : "dashboard"
-      );
+      setPage(safeUser.accountType === "vendor" ? "vendor-dashboard" : "dashboard");
     } catch (error) {
       setStatus(error.message);
     } finally {

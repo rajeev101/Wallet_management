@@ -48,22 +48,23 @@ function App() {
   useEffect(() => {
     let active = true;
     const token = sessionStorage.getItem("cpacToken");
-    if (!token) {
+    if (!token || authStatus === "authenticated" || authStatus === "denied") {
       return () => { active = false; };
     }
     getProfile(token).then(({ user }) => {
       if (!active) return;
-      if (!user) throw new Error("Invalid session");
+      if (!user || !["student", "vendor", "admin"].includes(user.accountType)) throw new Error("Invalid session");
       sessionStorage.setItem("cpacUser", JSON.stringify(user));
       sessionStorage.setItem("cpacUserType", user.accountType);
       if (user.accountType !== "admin") {
         setAuthStatus("denied");
+        const targetPath = user.accountType === "vendor" ? "/vendor/dashboard" : "/student/dashboard";
+        window.location.assign(targetPath);
         return;
       }
       setAuthStatus("authenticated");
-      if (page === "admin-dashboard") return;
       const cleanPath = getCleanPath(window.location.pathname);
-      if (cleanPath === "/") {
+      if (cleanPath !== pagePaths["admin-dashboard"]) {
         window.history.replaceState({}, "", `${getPrefix()}${pagePaths["admin-dashboard"]}`);
         setPage("admin-dashboard");
       }
@@ -73,10 +74,10 @@ function App() {
       sessionStorage.removeItem("cpacUserType");
       sessionStorage.removeItem("cpacUser");
       setAuthStatus("unauthenticated");
-      if (page === "admin-dashboard") setPage("admin-login");
+      setPage((currentPage) => currentPage === "admin-dashboard" ? "admin-login" : currentPage);
     });
     return () => { active = false; };
-  }, [page]);
+  }, [authStatus, page]);
 
   const navigate = (nextPage) => {
     const token = sessionStorage.getItem("cpacToken");
@@ -103,7 +104,15 @@ function App() {
       if (!token) {
         resolvedPage = "admin-login";
       } else if (accountType !== "admin") {
-        resolvedPage = "denied";
+        window.location.assign(accountType === "vendor" ? "/vendor/dashboard" : "/student/dashboard");
+        return;
+      } else {
+        try {
+          const user = JSON.parse(sessionStorage.getItem("cpacUser") || "null");
+          if (user?.accountType === "admin") setAuthStatus("authenticated");
+        } catch {
+          resolvedPage = "admin-login";
+        }
       }
     }
 

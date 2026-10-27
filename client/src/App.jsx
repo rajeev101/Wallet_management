@@ -29,7 +29,7 @@ const getDashboardPage = (accountType) => {
     return "vendor-dashboard";
   }
 
-  return "dashboard";
+  return accountType === "student" ? "dashboard" : "login";
 };
 
 function App() {
@@ -42,22 +42,25 @@ function App() {
     const token = sessionStorage.getItem("cpacToken");
     const accountType = sessionStorage.getItem("cpacUserType");
 
-    if (pathPage) {
-      return pathPage;
-    }
-
     if (!token) {
-      return "login";
+      return pathPage && !["dashboard", "vendor-dashboard"].includes(pathPage)
+        ? pathPage
+        : "login";
     }
 
-    return getDashboardPage(accountType);
+    const dashboardPage = getDashboardPage(accountType);
+    return ["dashboard", "vendor-dashboard", "login"].includes(pathPage)
+      ? dashboardPage
+      : pathPage || dashboardPage;
   });
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
 
   useEffect(() => {
     let active = true;
     const token = sessionStorage.getItem("cpacToken");
-    if (!token) {
+    // A fresh login has already provided a verified profile. Only revalidate
+    // sessions restored from storage; page changes must not race that login.
+    if (!token || authStatus === "authenticated") {
       return () => { active = false; };
     }
     getProfile(token).then(({ user }) => {
@@ -68,9 +71,11 @@ function App() {
       setAuthUser(user);
       setAuthStatus("authenticated");
       const desiredPage = getDashboardPage(user.accountType);
-      if ((page === "dashboard" || page === "vendor-dashboard") && page !== desiredPage) {
-        window.history.replaceState({}, "", pagePaths[desiredPage]);
-        setPage(desiredPage);
+      if (page === "dashboard" || page === "vendor-dashboard") {
+        if (page !== desiredPage || window.location.pathname !== pagePaths[desiredPage]) {
+          window.history.replaceState({}, "", pagePaths[desiredPage]);
+          setPage(desiredPage);
+        }
       }
     }).catch(() => {
       if (!active) return;
@@ -79,17 +84,40 @@ function App() {
       sessionStorage.removeItem("cpacUser");
       setAuthUser(null);
       setAuthStatus("unauthenticated");
-      if (page === "dashboard" || page === "vendor-dashboard") setPage("login");
+      setPage((currentPage) =>
+        currentPage === "dashboard" || currentPage === "vendor-dashboard"
+          ? "login"
+          : currentPage
+      );
     });
     return () => { active = false; };
-  }, [page]);
+  }, [authStatus, page]);
 
   const navigate = (nextPage) => {
     const accountType = sessionStorage.getItem("cpacUserType");
     let resolvedPage = nextPage;
 
-    if (nextPage === "dashboard") {
+    if (nextPage === "dashboard" || nextPage === "vendor-dashboard") {
       resolvedPage = getDashboardPage(accountType);
+      if (["dashboard", "vendor-dashboard"].includes(resolvedPage)) {
+        try {
+          const user = JSON.parse(sessionStorage.getItem("cpacUser") || "null");
+          if (user?.accountType === accountType) {
+            setAuthUser(user);
+            setAuthStatus("authenticated");
+          }
+        } catch {
+          setAuthUser(null);
+        }
+      }
+    }
+
+    if (resolvedPage === "login") {
+      sessionStorage.removeItem("cpacToken");
+      sessionStorage.removeItem("cpacUserType");
+      sessionStorage.removeItem("cpacUser");
+      setAuthUser(null);
+      setAuthStatus("unauthenticated");
     }
 
     const nextPath = pagePaths[resolvedPage] || "/login";
