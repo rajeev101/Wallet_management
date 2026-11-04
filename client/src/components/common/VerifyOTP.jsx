@@ -65,7 +65,8 @@ function VerifyOTP({ setPage, email }) {
     setIsSubmitting(true);
 
     try {
-      await verifyOtp({ email, otp: otpString });
+      const data = await verifyOtp({ email, otp: otpString });
+      sessionStorage.setItem("cpacResetToken", data.resetToken);
       setStatus("OTP verified successfully. Redirecting...");
       setTimeout(() => {
         setPage("reset");

@@ -143,7 +143,8 @@ function StudentTransactionsPage({ student, onLogout }) {
       if (isTopup) {
         amountStr = formatStudentAmount(Number(t.amount || 0), { includeSign: true });
       } else if (isPayment) {
-        if (t.student?._id === currentUserId || t.student === currentUserId) {
+        const payer = t.accountHolder || t.student || t.customer;
+        if (payer?._id === currentUserId || payer === currentUserId) {
           amountStr = formatStudentAmount(Number(t.amount || 0), { includeSign: true, negative: true });
         } else {
           amountStr = formatStudentAmount(Number(t.amount || 0), { includeSign: true });
@@ -250,7 +251,7 @@ function StudentTransactionsPage({ student, onLogout }) {
         Amount: Number(rawTransaction.amount ?? 0),
         Status: rawTransaction.status ? rawTransaction.status.charAt(0).toUpperCase() + rawTransaction.status.slice(1) : transaction.status,
         Description: rawTransaction.description || transaction.vendor || "",
-        "Vendor/Student": rawTransaction.vendor?.name || rawTransaction.student?.name || transaction.vendor || "",
+        [student.accountType === "customer" ? "Vendor/Customer" : "Vendor/Student"]: rawTransaction.vendor?.name || rawTransaction.accountHolder?.name || rawTransaction.student?.name || transaction.vendor || "",
       };
     });
 

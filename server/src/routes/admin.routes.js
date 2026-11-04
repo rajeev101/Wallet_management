@@ -4,6 +4,8 @@ const {
   approveVendor,
   getDashboardStats,
   getStudents,
+  getCustomers,
+  createVendor,
   getTransactions,
   getVendors,
   rejectVendor,
@@ -18,7 +20,12 @@ router.use(authMiddleware.verifyToken, authMiddleware.verifyAdmin);
 
 router.get("/stats", getDashboardStats);
 router.get("/students", getStudents);
+router.get("/customers", getCustomers);
 router.get("/vendors", getVendors);
+router.post("/vendors", createVendor);
+// Explicit activation names plus legacy approval routes for compatibility.
+router.put("/vendor/:id/activate", approveVendor);
+router.put("/vendor/:id/deactivate", rejectVendor);
 router.put("/vendor/:id/approve", approveVendor);
 router.put("/vendor/:id/reject", rejectVendor);
 router.post("/add-money", addMoney);

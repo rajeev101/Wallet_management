@@ -36,14 +36,20 @@ export const getAdminStats = () => request("/admin/stats");
 export const getAdminStudents = (search = "") =>
   request(`/admin/students${search ? `?search=${encodeURIComponent(search)}` : ""}`);
 
+export const getAdminCustomers = (search = "") =>
+  request(`/admin/customers${search ? `?search=${encodeURIComponent(search)}` : ""}`);
+
 export const getAdminVendors = (search = "") =>
   request(`/admin/vendors${search ? `?search=${encodeURIComponent(search)}` : ""}`);
 
-export const approveVendor = (id) =>
-  request(`/admin/vendor/${id}/approve`, undefined, { method: "PUT" });
+export const createVendor = (payload) =>
+  request("/admin/vendors", payload, { method: "POST" });
 
-export const rejectVendor = (id) =>
-  request(`/admin/vendor/${id}/reject`, undefined, { method: "PUT" });
+export const activateVendor = (id) =>
+  request(`/admin/vendor/${id}/activate`, undefined, { method: "PUT" });
+
+export const deactivateVendor = (id) =>
+  request(`/admin/vendor/${id}/deactivate`, undefined, { method: "PUT" });
 
 export const addMoneyToStudent = (payload) =>
   request("/admin/add-money", payload, { method: "POST" });

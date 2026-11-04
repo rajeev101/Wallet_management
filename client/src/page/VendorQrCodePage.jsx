@@ -69,7 +69,7 @@ function VendorQrCodePage({ vendor }) {
           <h2>How to use:</h2>
           <ol>
             <li>Display this static QR code at your shop counter</li>
-            <li>Students scan the code using Campus Wallet app</li>
+            <li>Students and Customers scan the code using Campus Wallet app</li>
             <li>They enter the amount and confirm payment</li>
             <li>You receive instant payment notification</li>
           </ol>

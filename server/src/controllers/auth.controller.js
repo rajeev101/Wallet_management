@@ -5,10 +5,12 @@ const Transaction = require("../models/transaction.model");
 const Notification = require("../models/notification.model");
 const bcrypt = require("bcryptjs");
 const generateToken = require("../utils/generateToken");
+const { WALLET_PAYER_ROLES, formatTransaction } = require("../utils/walletRoles");
 const { sendOTPEmail, sendPasswordResetSuccessEmail } = require("../utils/email");
 
 const crypto = require("crypto");
 const transporter = require("../services/email.service");
+exports.changePassword = require("./password.controller").changePassword;
 
 const notifyAdmins = async ({ type, text }) => {
   const admins = await User.find({ accountType: "admin" }).select("_id");
@@ -29,10 +31,10 @@ exports.signup = async (req, res) => {
     const { name, email, password, accountType } = req.body;
     const requestedAccountType = String(accountType || "student").toLowerCase();
 
-    if (!["student", "vendor"].includes(requestedAccountType)) {
+    if (!WALLET_PAYER_ROLES.includes(requestedAccountType)) {
       return res.status(400).json({
         success: false,
-        message: "Account type must be student or vendor",
+        message: "Public registration is available for students and customers only. Vendors are created by an administrator.",
       });
     }
 
@@ -40,6 +42,15 @@ exports.signup = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Name, email, and password are required",
+      });
+    }
+
+    const identityField = requestedAccountType === "student" ? "student_id" : "samagra_id";
+    const identityValue = req.body[identityField];
+    if (typeof identityValue !== "string" || !identityValue.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: requestedAccountType === "student" ? "Student ID is required" : "Samagra ID is required",
       });
     }
 
@@ -64,6 +75,7 @@ exports.signup = async (req, res) => {
       email: email.toLowerCase().trim(),
       password: hashedPassword,
       accountType: requestedAccountType,
+      [identityField]: identityValue.trim(),
     });
 
     let wallet;
@@ -139,6 +151,11 @@ exports.login = async (req, res) => {
         success: false,
         message: "Your vendor account is inactive. Please contact the administrator.",
       });
+    }
+
+    // Optional role selection leaves legacy login payloads unchanged.
+    if (req.body.accountType && String(req.body.accountType).toLowerCase() !== user.accountType) {
+      return res.status(403).json({ success: false, message: "Use the login page for your account type." });
     }
 
     const token = generateToken(user._id);
@@ -257,7 +274,7 @@ exports.updateProfile = async (req, res) => {
       name: name.trim(),
     };
 
-    if (["student", "vendor"].includes(currentUser.accountType)) {
+    if (["student", "customer", "vendor"].includes(currentUser.accountType)) {
       if (
         requestedEmail !== undefined &&
         String(requestedEmail).toLowerCase().trim() !== currentUser.email
@@ -395,7 +412,10 @@ exports.forgotPassword = async (req, res) => {
     }
 
     // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = crypto.randomInt(100000, 1000000).toString();
+    user.resetPasswordToken = null;
+    user.resetPasswordExpiresAt = null;
+    await user.save();
 
     // Delete any existing OTP for this email
     await OTP.deleteMany({ email: email.toLowerCase() });
@@ -483,11 +503,18 @@ exports.verifyOtp = async (req, res) => {
       });
     }
 
-    // OTP is valid
+    // Exchange the OTP for a short-lived, single-use reset grant.
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    await User.findOneAndUpdate({ email: email.toLowerCase() }, {
+      resetPasswordToken: crypto.createHash("sha256").update(resetToken).digest("hex"),
+      resetPasswordExpiresAt: new Date(Date.now() + 5 * 60 * 1000),
+    });
+    await OTP.deleteOne({ _id: otpRecord._id });
     res.status(200).json({
       success: true,
       message: "OTP verified successfully",
       email: email,
+      resetToken,
     });
 
   } catch (error) {
@@ -502,13 +529,13 @@ exports.verifyOtp = async (req, res) => {
 // RESET PASSWORD
 exports.resetPassword = async (req, res) => {
   try {
-    const { email, newPassword } = req.body;
+    const { email, newPassword, resetToken } = req.body;
 
     // Validate inputs
-    if (!email || !newPassword) {
+    if (!email || !newPassword || typeof resetToken !== "string" || !resetToken) {
       return res.status(400).json({
         success: false,
-        message: "Email and new password are required",
+        message: "Email, new password, and verified reset token are required",
       });
     }
 
@@ -520,24 +547,21 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    // Find user
-    const user = await User.findOne({
-      email: email.toLowerCase(),
-    });
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
     // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Update password
-    user.password = hashedPassword;
-    await user.save();
+    const user = await User.findOneAndUpdate({
+      email: email.toLowerCase(),
+      resetPasswordToken: crypto.createHash("sha256").update(resetToken).digest("hex"),
+      resetPasswordExpiresAt: { $gt: new Date() },
+    }, {
+      password: hashedPassword,
+      resetPasswordToken: null,
+      resetPasswordExpiresAt: null,
+    }, { returnDocument: "after" });
+    if (!user) {
+      return res.status(401).json({ success: false, message: "Password reset authorization expired or invalid. Verify a new OTP." });
+    }
 
     // Delete OTP record
     await OTP.deleteMany({ email: email.toLowerCase() });
@@ -568,6 +592,10 @@ exports.createWalletRequest = async (req, res) => {
     const userId = req.user?.userId;
     const { amount } = req.body;
     const parsedAmount = Number(amount);
+
+    if (!WALLET_PAYER_ROLES.includes(req.user?.accountType)) {
+      return res.status(403).json({ success: false, message: "Only students and customers may request wallet funds" });
+    }
 
     if (!userId) {
       return res.status(401).json({
@@ -611,7 +639,7 @@ exports.createWalletRequest = async (req, res) => {
         admins.map((admin) => ({
           recipient: admin._id,
           type: "wallet_request",
-          text: `Money Request: ${requester?.name || "A student"} requested ₹${parsedAmount.toFixed(2)}.`,
+          text: `Money Request: ${requester?.name || `A ${req.user.accountType}`} requested ₹${parsedAmount.toFixed(2)}.`,
         }))
       );
     }
@@ -659,18 +687,14 @@ exports.getStudentWalletRequests = async (req, res) => {
     })
       .populate({
         path: "toWallet",
-        populate: { path: "owner", select: "name email" }
+        populate: { path: "owner", select: "name email accountType" }
       })
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit + 1);
 
     const hasMore = requests.length > limit;
-    const formattedRequests = requests.slice(0, limit).map(reqObj => {
-      const r = reqObj.toObject();
-      r.student = r.toWallet?.owner;
-      return r;
-    });
+    const formattedRequests = requests.slice(0, limit).map(formatTransaction);
 
     res.status(200).json({
       success: true,
@@ -712,17 +736,21 @@ exports.makePayment = async (req, res) => {
     if (!student) {
       return res.status(404).json({
         success: false,
-        message: "Student not found",
+        message: "Account not found",
       });
     }
 
-    // Find student's wallet
+    if (!WALLET_PAYER_ROLES.includes(student.accountType)) {
+      return res.status(403).json({ success: false, message: "Only students and customers can pay vendors" });
+    }
+
+    // Find the payer's independently owned wallet.
     let studentWallet = await Wallet.findOne({ owner: studentId });
     if (!studentWallet) {
       studentWallet = await Wallet.create({
         owner: studentId,
         balance: 0,
-        ownerType: "student",
+        ownerType: student.accountType,
         status: "active",
       });
     }
@@ -747,7 +775,7 @@ exports.makePayment = async (req, res) => {
     if (vendor.vendorStatus !== "approved") {
       return res.status(403).json({
         success: false,
-        message: "Vendor is not approved to accept payments",
+        message: "Vendor is inactive and cannot accept payments",
       });
     }
 
@@ -762,24 +790,38 @@ exports.makePayment = async (req, res) => {
       });
     }
 
-    // Perform transaction (deduct student wallet, add vendor wallet)
-    studentWallet.balance -= parsedAmount;
-    vendorWallet.balance += parsedAmount;
+    // Conditional debit prevents concurrent requests from overdrawing a wallet.
+    studentWallet = await Wallet.findOneAndUpdate(
+      { _id: studentWallet._id, balance: { $gte: parsedAmount } },
+      { $inc: { balance: -parsedAmount } },
+      { returnDocument: "after" }
+    );
+    if (!studentWallet) {
+      return res.status(400).json({ success: false, message: "Insufficient wallet balance" });
+    }
+    let transaction;
+    let credited = false;
+    try {
+      const recipientWallet = await Wallet.findByIdAndUpdate(vendorWallet._id,
+        { $inc: { balance: parsedAmount } }, { returnDocument: "after" });
+      if (!recipientWallet) throw new Error("Vendor wallet no longer exists");
+      credited = true;
+      transaction = await Transaction.create({
+        fromWallet: studentWallet._id,
+        toWallet: vendorWallet._id,
+        type: "payment",
+        amount: parsedAmount,
+        status: "completed",
+        description: `Payment to ${vendor.name}`,
+        createdBy: student._id,
+      });
+    } catch (error) {
+      if (credited) await Wallet.updateOne({ _id: vendorWallet._id }, { $inc: { balance: -parsedAmount } });
+      await Wallet.updateOne({ _id: studentWallet._id }, { $inc: { balance: parsedAmount } });
+      throw error;
+    }
 
-    await studentWallet.save();
-    await vendorWallet.save();
-
-    // Create payment transaction
-    const transaction = await Transaction.create({
-      fromWallet: studentWallet._id,
-      toWallet: vendorWallet._id,
-      type: "payment",
-      amount: parsedAmount,
-      status: "completed",
-      description: `Payment to ${vendor.name}`,
-    });
-
-    await Promise.all([
+    await Promise.allSettled([
       Notification.create({
         recipient: vendor._id,
         type: "payment",
@@ -833,27 +875,15 @@ exports.getMyTransactions = async (req, res) => {
     })
       .populate({
         path: "fromWallet",
-        populate: { path: "owner", select: "name email" }
+        populate: { path: "owner", select: "name email accountType" }
       })
       .populate({
         path: "toWallet",
-        populate: { path: "owner", select: "name email" }
+        populate: { path: "owner", select: "name email accountType" }
       })
       .sort({ createdAt: -1 });
 
-    const formattedTransactions = transactions.map(t => {
-      const tObj = t.toObject();
-      if (tObj.type === "wallet_topup") {
-        tObj.student = tObj.toWallet?.owner;
-      } else if (tObj.type === "payment") {
-        tObj.student = tObj.fromWallet?.owner;
-        tObj.vendor = tObj.toWallet?.owner;
-      } else if (tObj.type === "refund") {
-        tObj.student = tObj.toWallet?.owner;
-        tObj.vendor = tObj.fromWallet?.owner;
-      }
-      return tObj;
-    });
+    const formattedTransactions = transactions.map(formatTransaction);
 
     res.status(200).json({
       success: true,

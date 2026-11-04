@@ -22,10 +22,21 @@ const userSchema = new mongoose.Schema(
 
     accountType: {
       type: String,
-      enum: ["student", "vendor", "admin"],
+      enum: ["student", "customer", "vendor", "admin"],
       default: "student",
     },
 
+    // Required for new signups by the controller, optional for legacy accounts.
+    // Strings preserve leading zeros and alphanumeric Student IDs.
+    student_id: {
+      type: String,
+      trim: true,
+    },
+
+    samagra_id: {
+      type: String,
+      trim: true,
+    },
 
     vendorStatus: {
       type: String,

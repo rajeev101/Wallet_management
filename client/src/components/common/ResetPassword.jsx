@@ -44,7 +44,9 @@ function ResetPassword({ setPage, email }) {
       await resetPassword({
         email,
         newPassword: form.newPassword,
+        resetToken: sessionStorage.getItem("cpacResetToken"),
       });
+      sessionStorage.removeItem("cpacResetToken");
       setStatus("Password reset successfully! Redirecting to login...");
       setTimeout(() => {
         setPage("login");

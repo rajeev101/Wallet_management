@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import StudentHeader from "./StudentHeader";
 import { getProfile, updateProfile } from "../api/auth";
+import ChangePasswordForm from "../components/common/ChangePasswordForm";
 
 const getStoredStudent = () => {
   try {
@@ -28,12 +29,13 @@ const getStoredStudent = () => {
   }
 };
 
-const createStudentId = (id) => {
+const createStudentId = (id, role = "student") => {
+  const prefix = role === "customer" ? "CUS" : "STU";
   if (!id) {
-    return "STU12345";
+    return `${prefix}12345`;
   }
 
-  return `STU${id.slice(-5).toUpperCase()}`;
+  return `${prefix}${id.slice(-5).toUpperCase()}`;
 };
 
 const getNameInitials = (name = "Student") => {
@@ -124,8 +126,9 @@ function StudentProfilePage({ initialStudent, onProfileChange, onLogout }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const studentId = createStudentId(student.id);
-  const displayName = profile.name.trim() || "Student";
+  const roleLabel = student.accountType === "customer" ? "Customer" : "Student";
+  const studentId = createStudentId(student.id, student.accountType);
+  const displayName = profile.name.trim() || roleLabel;
   const studentInitials = getNameInitials(displayName);
   const profilePhoto = profile.photo || "";
 
@@ -225,7 +228,7 @@ function StudentProfilePage({ initialStudent, onProfileChange, onLogout }) {
   };
 
   return (
-    <section className="student-profile-view" aria-label="Student profile">
+    <section className="student-profile-view" aria-label={`${roleLabel} profile`}>
         {!isEditingProfile ? (
         <article className="profile-settings-card">
           <div className="profile-overview-card">
@@ -234,7 +237,7 @@ function StudentProfilePage({ initialStudent, onProfileChange, onLogout }) {
             </span>
             <div>
               <h2>{displayName}</h2>
-              <span>Student</span>
+              <span>{roleLabel}</span>
             </div>
           </div>
 
@@ -244,7 +247,7 @@ function StudentProfilePage({ initialStudent, onProfileChange, onLogout }) {
               <span>{displayName}</span>
             </div>
             <div>
-              <strong>Student ID</strong>
+              <strong>{roleLabel} ID</strong>
               <span>{studentId}</span>
             </div>
             <div>
@@ -280,7 +283,7 @@ function StudentProfilePage({ initialStudent, onProfileChange, onLogout }) {
         <article className="profile-settings-card profile-edit-card">
           <div className="profile-form-heading">
             <h2>Edit Profile</h2>
-            <span>Update your student account details</span>
+            <span>Update your {roleLabel.toLowerCase()} account details</span>
           </div>
           <form className="profile-edit-form" onSubmit={handleSubmit}>
             <div className="profile-edit-photo" aria-label="Profile photo">
@@ -418,6 +421,7 @@ function StudentProfilePage({ initialStudent, onProfileChange, onLogout }) {
           </form>
         </article>
         )}
+        {student.accountType === "customer" && !isEditingProfile && <ChangePasswordForm />}
       </section>
   );
 }

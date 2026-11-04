@@ -4,7 +4,8 @@ import InputField from "../common/InputField";
 import PasswordInput from "../common/PasswordInput";
 import Button from "../common/Button";
 
-function LoginForm({ setPage }) {
+function LoginForm({ setPage, accountType }) {
+  const isCustomer = accountType === "customer";
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -29,19 +30,19 @@ function LoginForm({ setPage }) {
     sessionStorage.removeItem("cpacUser");
 
     try {
-      const data = await loginUser(form);
+      const data = await loginUser({ ...form, ...(isCustomer ? { accountType: "customer" } : {}) });
       if (!data?.success || !data.token || !data.user) {
         throw new Error(data?.message || "Unable to sign in. Please try again.");
       }
       const safeUser = { ...(data.user || {}) };
       delete safeUser.password;
-      if (!["student", "vendor"].includes(safeUser.accountType)) {
-        throw new Error("This account type cannot sign in here.");
+      if (isCustomer ? safeUser.accountType !== "customer" : !["student", "vendor"].includes(safeUser.accountType)) {
+        throw new Error("Use the login page for your account type.");
       }
       sessionStorage.setItem("cpacToken", data.token);
       sessionStorage.setItem("cpacUserType", safeUser.accountType);
       sessionStorage.setItem("cpacUser", JSON.stringify(safeUser));
-      setPage(safeUser.accountType === "vendor" ? "vendor-dashboard" : "dashboard");
+      setPage(isCustomer ? "customer-dashboard" : safeUser.accountType === "vendor" ? "vendor-dashboard" : "dashboard");
     } catch (error) {
       setStatus(error.message);
     } finally {
@@ -51,7 +52,7 @@ function LoginForm({ setPage }) {
 
   return (
     <form className="auth-form" onSubmit={handleSubmit}>
-      <h1>Sign In</h1>
+      <h1>{isCustomer ? "Customer Sign In" : "Student Sign In"}</h1>
 
       <InputField
         label="Email Address"
@@ -81,7 +82,11 @@ function LoginForm({ setPage }) {
         <button
           className="link-button"
           type="button"
-          onClick={() => setPage("forgot")}
+          onClick={() => {
+            sessionStorage.setItem("cpacRecoveryRole", isCustomer ? "customer" : "student");
+            sessionStorage.removeItem("cpacResetToken");
+            setPage("forgot");
+          }}
         >
           Forgot Password?
         </button>
@@ -99,6 +104,13 @@ function LoginForm({ setPage }) {
           onClick={() => setPage("register")}
         >
           Create Account
+        </button>
+      </p>
+
+      <p className="switch-text">
+        {isCustomer ? "Student or vendor?" : "Not a student?"}
+        <button className="link-button" type="button" onClick={() => setPage(isCustomer ? "login" : "customer-login")}>
+          {isCustomer ? "Student Login" : "Customer Sign In"}
         </button>
       </p>
 

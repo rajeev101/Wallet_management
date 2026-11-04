@@ -15,7 +15,7 @@ const walletSchema = new mongoose.Schema(
     },
     ownerType: {
       type: String,
-      enum: ["student", "vendor", "admin"],
+      enum: ["student", "customer", "vendor", "admin"],
       required: true,
     },
     status: {

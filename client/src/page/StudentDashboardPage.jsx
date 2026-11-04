@@ -372,10 +372,13 @@ function StatDetailModal({ type, onClose }) {
   );
 }
 
-function StudentDashboardPage({ setPage }) {
+// Shared wallet dashboard: the Student default retains its existing views and URLs.
+function StudentDashboardPage({ setPage, role = "student" }) {
+  const roleLabel = role === "customer" ? "Customer" : "Student";
+  const viewKey = role === "customer" ? "customerView" : "studentView";
   const [activeView, setActiveView] = useState(() =>
-    STUDENT_VIEWS.includes(window.history.state?.studentView)
-      ? window.history.state.studentView
+    STUDENT_VIEWS.includes(window.history.state?.[viewKey])
+      ? window.history.state[viewKey]
       : "dashboard"
   );
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -442,7 +445,8 @@ function StudentDashboardPage({ setPage }) {
     if (isTopup) {
       amountStr = formatStudentAmount(Number(t.amount || 0), { includeSign: true });
     } else if (isPayment) {
-      if (t.student?._id === currentUserId || t.student === currentUserId) {
+      const payer = t.accountHolder || t.student || t.customer;
+      if (payer?._id === currentUserId || payer === currentUserId) {
         amountStr = formatStudentAmount(Number(t.amount || 0), { includeSign: true, negative: true });
       } else {
         amountStr = formatStudentAmount(Number(t.amount || 0), { includeSign: true });
@@ -506,7 +510,7 @@ function StudentDashboardPage({ setPage }) {
     sessionStorage.removeItem("cpacToken");
     sessionStorage.removeItem("cpacUserType");
     sessionStorage.removeItem("cpacUser");
-    setPage("login");
+    setPage(role === "customer" ? "customer-login" : "login");
   };
 
   useEffect(() => {
@@ -536,7 +540,7 @@ function StudentDashboardPage({ setPage }) {
       return;
     }
     window.history.pushState(
-      { ...(window.history.state || {}), studentView: view },
+      { ...(window.history.state || {}), [viewKey]: view },
       "",
       window.location.href
     );
@@ -547,7 +551,7 @@ function StudentDashboardPage({ setPage }) {
 
   useEffect(() => {
     const handleStudentViewPopState = (event) => {
-      const view = event.state?.studentView;
+      const view = event.state?.[viewKey];
       if (STUDENT_VIEWS.includes(view)) {
         setActiveView(view);
       } else {
@@ -559,7 +563,7 @@ function StudentDashboardPage({ setPage }) {
 
     window.addEventListener("popstate", handleStudentViewPopState);
     return () => window.removeEventListener("popstate", handleStudentViewPopState);
-  }, []);
+  }, [viewKey]);
   const showDashboard = () => changeView("dashboard");
   const showScanner = () => changeView("scan");
   const showTransactions = () => changeView("transactions");
@@ -567,11 +571,11 @@ function StudentDashboardPage({ setPage }) {
   const showProfile = () => changeView("profile");
 
   const pageCopy = {
-    dashboard: ["Student Dashboard", "Student wallet and payment interface"],
+    dashboard: [`${roleLabel} Dashboard`, `${roleLabel} wallet and payment interface`],
     scan: ["Scan to Pay", "QR code scanner for quick payments"],
     transactions: ["Transaction History", "View all past transactions"],
     addMoney: ["Add Money Request", "Request wallet balance top-up"],
-    profile: ["Student Profile", "Manage your personal information"],
+    profile: [`${roleLabel} Profile`, "Manage your personal information"],
   };
 
   const [pageTitle, pageSubtitle] = pageCopy[activeView] || pageCopy.dashboard;
@@ -609,7 +613,7 @@ function StudentDashboardPage({ setPage }) {
         <aside
           className={`student-sidebar${mobileNavOpen ? " mobile-open" : ""}`}
           id="student-dashboard-sidebar"
-          aria-label="Student navigation"
+          aria-label={`${roleLabel} navigation`}
         >
           <button
             className="mobile-sidebar-close"
@@ -626,11 +630,11 @@ function StudentDashboardPage({ setPage }) {
               </span>
               <div>
                 <strong>Campus Wallet</strong>
-                <span>Student Panel</span>
+                <span>{roleLabel} Panel</span>
               </div>
             </div>
 
-            <nav className="student-nav" aria-label="Student dashboard navigation">
+            <nav className="student-nav" aria-label={`${roleLabel} dashboard navigation`}>
               <button
                 className={activeView === "dashboard" ? "active" : ""}
                 type="button"

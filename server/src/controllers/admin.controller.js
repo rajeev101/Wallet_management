@@ -2,13 +2,17 @@ const Transaction = require("../models/transaction.model");
 const User = require("../models/user.model");
 const Wallet = require("../models/wallet.model");
 const Notification = require("../models/notification.model");
+const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
+const { WALLET_PAYER_ROLES, formatTransaction } = require("../utils/walletRoles");
+const onboarding = require("../services/vendorOnboarding.service");
 
 const getSearchFilter = (search) => {
   if (!search) {
     return {};
   }
 
-  const pattern = new RegExp(search.trim(), "i");
+  const pattern = new RegExp(String(search).trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
 
   return {
     $or: [
@@ -21,7 +25,7 @@ const getSearchFilter = (search) => {
 
 exports.getDashboardStats = async (req, res) => {
   try {
-    const [totalStudents, totalVendors, totalTransactions, transactionSummary, walletSummary] =
+    const [totalStudents, totalVendors, totalTransactions, transactionSummary, walletSummary, totalCustomers] =
       await Promise.all([
         User.countDocuments({ accountType: "student" }),
         User.countDocuments({ accountType: "vendor", vendorStatus: "approved" }),
@@ -50,7 +54,7 @@ exports.getDashboardStats = async (req, res) => {
           },
         ]),
         Wallet.aggregate([
-          { $match: { ownerType: "student" } },
+          { $match: { ownerType: { $in: WALLET_PAYER_ROLES } } },
           {
             $group: {
               _id: null,
@@ -59,6 +63,7 @@ exports.getDashboardStats = async (req, res) => {
             },
           },
         ]),
+        User.countDocuments({ accountType: "customer" }),
       ]);
 
     const txSummary = transactionSummary[0] || {
@@ -67,24 +72,19 @@ exports.getDashboardStats = async (req, res) => {
       totalRefunds: 0,
     };
 
-    // Calculate dynamically from completed transactions: (Total Added - Total Payments + Total Refunds)
-    const netTransactionBalance = Math.max(
-      0,
-      txSummary.totalMoneyAdded - txSummary.totalPayments + txSummary.totalRefunds
-    );
-
-    // Total balance is strictly calculated based on transactions
-    const totalWalletBalance = netTransactionBalance;
+    // Existing balances are authoritative even when historical transactions are incomplete.
+    const totalWalletBalance = walletSummary[0]?.totalWalletBalance || 0;
 
     const averageWalletBalance =
-      totalStudents > 0
-        ? totalWalletBalance / totalStudents
+      totalStudents + totalCustomers > 0
+        ? totalWalletBalance / (totalStudents + totalCustomers)
         : 0;
 
     res.status(200).json({
       success: true,
       stats: {
         totalStudents,
+        totalCustomers,
         totalVendors,
         totalTransactions,
         totalWalletBalance,
@@ -133,6 +133,56 @@ exports.getStudents = async (req, res) => {
       success: false,
       message: error.message,
     });
+  }
+};
+
+exports.getCustomers = async (req, res) => {
+  try {
+    const customers = await User.find({ accountType: "customer", ...getSearchFilter(req.query.search) })
+      .select("-password -resetPasswordToken -verificationToken").sort({ createdAt: -1 });
+    const wallets = await Wallet.find({ owner: { $in: customers.map((user) => user._id) } });
+    const balances = new Map(wallets.map((wallet) => [String(wallet.owner), wallet.balance]));
+    res.json({ success: true, customers: customers.map((user) => ({ ...user.toObject(), walletBalance: balances.get(String(user._id)) || 0 })) });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.createVendor = async (req, res) => {
+  let vendor;
+  try {
+    const name = String(req.body.name || "").trim();
+    const email = String(req.body.email || "").trim().toLowerCase();
+    if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ success: false, message: "Vendor name and valid email are required" });
+    }
+    if (await User.findOne({ email })) {
+      return res.status(409).json({ success: false, message: "Email already exists" });
+    }
+    const password = crypto.randomBytes(24).toString("base64url");
+    vendor = await User.create({
+      name, email, phone: String(req.body.phone || "").trim(),
+      password: await bcrypt.hash(password, 10),
+      accountType: "vendor", vendorStatus: req.body.active === false ? "rejected" : "approved",
+    });
+    const wallet = await Wallet.create({ owner: vendor._id, ownerType: "vendor", balance: 0 });
+    try {
+      await onboarding.sendVendorOnboardingEmail({ email, password });
+    } catch {
+      await Wallet.deleteOne({ _id: wallet._id });
+      await User.deleteOne({ _id: vendor._id });
+      vendor = null;
+      return res.status(503).json({ success: false, message: "Onboarding email could not be sent. No vendor account was retained. Configure email delivery and try again." });
+    }
+    const safeVendor = vendor.toObject();
+    delete safeVendor.password;
+    res.status(201).json({ success: true, message: "Vendor created and onboarding email sent", vendor: { ...safeVendor, walletBalance: 0 } });
+  } catch (error) {
+    if (vendor) {
+      await Wallet.deleteOne({ owner: vendor._id });
+      await User.deleteOne({ _id: vendor._id });
+    }
+    res.status(error.code === 11000 ? 409 : 500).json({ success: false, message: error.code === 11000 ? "Email already exists" : "Vendor could not be created" });
   }
 };
 
@@ -187,7 +237,7 @@ exports.approveVendor = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Vendor approved successfully",
+      message: "Vendor activated successfully",
       vendor,
     });
   } catch (error) {
@@ -215,7 +265,7 @@ exports.rejectVendor = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Vendor rejected successfully",
+      message: "Vendor deactivated successfully",
       vendor,
     });
   } catch (error) {
@@ -228,7 +278,8 @@ exports.rejectVendor = async (req, res) => {
 
 exports.addMoney = async (req, res) => {
   try {
-    const { studentId, amount, description } = req.body;
+    const { amount, description } = req.body;
+    const studentId = req.body.studentId || req.body.customerId;
     const parsedAmount = Number(amount);
 
     if (!studentId || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
@@ -238,11 +289,11 @@ exports.addMoney = async (req, res) => {
       });
     }
 
-    const student = await User.findOne({ _id: studentId, accountType: "student" });
+    const student = await User.findOne({ _id: studentId, accountType: req.body.customerId ? "customer" : "student" });
     if (!student) {
       return res.status(404).json({
         success: false,
-        message: "Student not found",
+        message: req.body.customerId ? "Customer not found" : "Student not found",
       });
     }
 
@@ -251,7 +302,7 @@ exports.addMoney = async (req, res) => {
       wallet = await Wallet.create({
         owner: studentId,
         balance: 0,
-        ownerType: "student",
+        ownerType: student.accountType,
         status: "active",
       });
     }
@@ -269,12 +320,13 @@ exports.addMoney = async (req, res) => {
     });
 
     const studentObj = student.toObject();
+    delete studentObj.password;
     studentObj.walletBalance = wallet.balance;
 
     res.status(200).json({
       success: true,
       message: "Money added successfully",
-      student: studentObj,
+      [student.accountType]: studentObj,
       transaction,
     });
   } catch (error) {
@@ -306,11 +358,11 @@ exports.getTransactions = async (req, res) => {
     let dbQuery = Transaction.find(queryObj)
       .populate({
         path: "fromWallet",
-        populate: { path: "owner", select: "name email" },
+        populate: { path: "owner", select: "name email accountType" },
       })
       .populate({
         path: "toWallet",
-        populate: { path: "owner", select: "name email" },
+        populate: { path: "owner", select: "name email accountType" },
       })
       .populate("createdBy", "name email accountType")
       .sort({ createdAt: -1 });
@@ -321,19 +373,7 @@ exports.getTransactions = async (req, res) => {
 
     const transactions = await dbQuery;
 
-    const formattedTransactions = transactions.map((t) => {
-      const tObj = t.toObject();
-      if (tObj.type === "wallet_topup") {
-        tObj.student = tObj.toWallet?.owner;
-      } else if (tObj.type === "payment") {
-        tObj.student = tObj.fromWallet?.owner;
-        tObj.vendor = tObj.toWallet?.owner;
-      } else if (tObj.type === "refund") {
-        tObj.student = tObj.toWallet?.owner;
-        tObj.vendor = tObj.fromWallet?.owner;
-      }
-      return tObj;
-    });
+    const formattedTransactions = transactions.map(formatTransaction);
 
     res.status(200).json({
       success: true,
@@ -352,15 +392,11 @@ exports.getAdminWalletRequests = async (req, res) => {
     const requests = await Transaction.find({ type: "wallet_topup" })
       .populate({
         path: "toWallet",
-        populate: { path: "owner", select: "name email" },
+        populate: { path: "owner", select: "name email accountType" },
       })
       .sort({ createdAt: -1 });
 
-    const formattedRequests = requests.map((t) => {
-      const tObj = t.toObject();
-      tObj.student = tObj.toWallet?.owner;
-      return tObj;
-    });
+    const formattedRequests = requests.map(formatTransaction);
 
     res.status(200).json({
       success: true,
@@ -392,6 +428,10 @@ exports.updateWalletRequestStatus = async (req, res) => {
         success: false,
         message: "Request not found",
       });
+    }
+
+    if (transaction.type !== "wallet_topup") {
+      return res.status(400).json({ success: false, message: "Only wallet top-up requests can be reviewed" });
     }
 
     if (transaction.status !== "pending") {

@@ -46,6 +46,9 @@ export const getProfile = (token) =>
 export const updateProfile = (payload, token) =>
   request("/auth/profile", payload, { method: "PUT", token });
 
+export const changePassword = (payload, token) =>
+  request("/auth/password", payload, { method: "PUT", token });
+
 export const createWalletRequest = (payload, token) =>
   request("/auth/wallet/request", payload, { method: "POST", token });
 

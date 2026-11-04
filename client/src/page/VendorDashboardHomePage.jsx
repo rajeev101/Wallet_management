@@ -163,7 +163,7 @@ function VendorStatDetailModal({ type, vendor, onClose }) {
                 <thead>
                   <tr style={{ background: "#f8f9fb" }}>
                     <th style={{ padding: "10px 14px", fontWeight: "500", color: "#7c8497", textTransform: "uppercase", fontSize: "0.7rem" }}>Date & Time</th>
-                    <th style={{ padding: "10px 14px", fontWeight: "500", color: "#7c8497", textTransform: "uppercase", fontSize: "0.7rem" }}>Student</th>
+                    <th style={{ padding: "10px 14px", fontWeight: "500", color: "#7c8497", textTransform: "uppercase", fontSize: "0.7rem" }}>Payer</th>
                     <th style={{ padding: "10px 14px", fontWeight: "500", color: "#7c8497", textTransform: "uppercase", fontSize: "0.7rem" }}>Amount</th>
                     <th style={{ padding: "10px 14px", fontWeight: "500", color: "#7c8497", textTransform: "uppercase", fontSize: "0.7rem" }}>Transaction ID</th>
                     <th style={{ padding: "10px 14px", fontWeight: "500", color: "#7c8497", textTransform: "uppercase", fontSize: "0.7rem" }}>Method</th>
@@ -181,7 +181,7 @@ function VendorStatDetailModal({ type, vendor, onClose }) {
                           {dateStr}
                           <span style={{ display: "block", fontSize: "0.75rem", color: "#9ca3b4", marginTop: "2px" }}>{timeStr}</span>
                         </td>
-                        <td style={{ padding: "12px 14px", color: "#1a1d2e", fontWeight: "500" }}>{t.student?.name || t.student?._id || "Student"}</td>
+                        <td style={{ padding: "12px 14px", color: "#1a1d2e", fontWeight: "500" }}>{t.accountHolder?.name || t.student?.name || t.customer?.name || "Account holder"}</td>
                         <td style={{ padding: "12px 14px", color: "#10b981", fontWeight: "600" }}>{formatWholeRupees(Number(t.amount || 0))}</td>
                         <td style={{ padding: "12px 14px", color: "#7c8497", fontSize: "0.75rem" }}>{t._id}</td>
                         <td style={{ padding: "12px 14px", color: "#374151" }}>Wallet</td>
@@ -255,7 +255,7 @@ function VendorStatDetailModal({ type, vendor, onClose }) {
                 <thead>
                   <tr style={{ background: "#f8f9fb" }}>
                     <th style={{ padding: "10px 14px", fontWeight: "500", color: "#7c8497", textTransform: "uppercase", fontSize: "0.7rem" }}>Date & Time</th>
-                    <th style={{ padding: "10px 14px", fontWeight: "500", color: "#7c8497", textTransform: "uppercase", fontSize: "0.7rem" }}>Student</th>
+                    <th style={{ padding: "10px 14px", fontWeight: "500", color: "#7c8497", textTransform: "uppercase", fontSize: "0.7rem" }}>Payer</th>
                     <th style={{ padding: "10px 14px", fontWeight: "500", color: "#7c8497", textTransform: "uppercase", fontSize: "0.7rem" }}>Amount</th>
                     <th style={{ padding: "10px 14px", fontWeight: "500", color: "#7c8497", textTransform: "uppercase", fontSize: "0.7rem" }}>Transaction ID</th>
                     <th style={{ padding: "10px 14px", fontWeight: "500", color: "#7c8497", textTransform: "uppercase", fontSize: "0.7rem" }}>Status</th>
@@ -272,7 +272,7 @@ function VendorStatDetailModal({ type, vendor, onClose }) {
                           {dateStr}
                           <span style={{ display: "block", fontSize: "0.75rem", color: "#9ca3b4", marginTop: "2px" }}>{timeStr}</span>
                         </td>
-                        <td style={{ padding: "12px 14px", color: "#1a1d2e", fontWeight: "500" }}>{t.student?.name || t.student?._id || "Student"}</td>
+                        <td style={{ padding: "12px 14px", color: "#1a1d2e", fontWeight: "500" }}>{t.accountHolder?.name || t.student?.name || t.customer?.name || "Account holder"}</td>
                         <td style={{ padding: "12px 14px", color: "#10b981", fontWeight: "600" }}>{formatWholeRupees(Number(t.amount || 0))}</td>
                         <td style={{ padding: "12px 14px", color: "#7c8497", fontSize: "0.75rem" }}>{t._id}</td>
                         <td style={{ padding: "12px 14px" }}>
@@ -349,7 +349,7 @@ function VendorStatDetailModal({ type, vendor, onClose }) {
                   <thead>
                     <tr style={{ background: "#f8f9fb" }}>
                       <th style={{ padding: "10px 14px", fontWeight: "500", color: "#7c8497", textTransform: "uppercase", fontSize: "0.7rem" }}>Date & Time</th>
-                      <th style={{ padding: "10px 14px", fontWeight: "500", color: "#7c8497", textTransform: "uppercase", fontSize: "0.7rem" }}>Student</th>
+                      <th style={{ padding: "10px 14px", fontWeight: "500", color: "#7c8497", textTransform: "uppercase", fontSize: "0.7rem" }}>Payer</th>
                       <th style={{ padding: "10px 14px", fontWeight: "500", color: "#7c8497", textTransform: "uppercase", fontSize: "0.7rem" }}>Amount</th>
                       <th style={{ padding: "10px 14px", fontWeight: "500", color: "#7c8497", textTransform: "uppercase", fontSize: "0.7rem" }}>Transaction ID</th>
                       <th style={{ padding: "10px 14px", fontWeight: "500", color: "#7c8497", textTransform: "uppercase", fontSize: "0.7rem" }}>Status</th>
@@ -366,7 +366,7 @@ function VendorStatDetailModal({ type, vendor, onClose }) {
                             {dateStr}
                             <span style={{ display: "block", fontSize: "0.75rem", color: "#9ca3b4", marginTop: "2px" }}>{timeStr}</span>
                           </td>
-                          <td style={{ padding: "12px 14px", color: "#1a1d2e", fontWeight: "500" }}>{t.student?.name || t.student?._id || "Student"}</td>
+                          <td style={{ padding: "12px 14px", color: "#1a1d2e", fontWeight: "500" }}>{t.accountHolder?.name || t.student?.name || t.customer?.name || "Account holder"}</td>
                           <td style={{ padding: "12px 14px", color: "#1a1d2e", fontWeight: "600" }}>{formatWholeRupees(Number(t.amount || 0))}</td>
                           <td style={{ padding: "12px 14px", color: "#7c8497", fontSize: "0.75rem" }}>{t._id}</td>
                           <td style={{ padding: "12px 14px" }}>
@@ -452,7 +452,7 @@ function VendorStatDetailModal({ type, vendor, onClose }) {
                 <thead>
                   <tr style={{ background: "#f8f9fb" }}>
                     <th style={{ padding: "10px 14px", fontWeight: "500", color: "#7c8497", textTransform: "uppercase", fontSize: "0.7rem" }}>Date & Time</th>
-                    <th style={{ padding: "10px 14px", fontWeight: "500", color: "#7c8497", textTransform: "uppercase", fontSize: "0.7rem" }}>Student</th>
+                    <th style={{ padding: "10px 14px", fontWeight: "500", color: "#7c8497", textTransform: "uppercase", fontSize: "0.7rem" }}>Payer</th>
                     <th style={{ padding: "10px 14px", fontWeight: "500", color: "#7c8497", textTransform: "uppercase", fontSize: "0.7rem" }}>Amount</th>
                     <th style={{ padding: "10px 14px", fontWeight: "500", color: "#7c8497", textTransform: "uppercase", fontSize: "0.7rem" }}>Transaction ID</th>
                     <th style={{ padding: "10px 14px", fontWeight: "500", color: "#7c8497", textTransform: "uppercase", fontSize: "0.7rem" }}>Status</th>
@@ -469,7 +469,7 @@ function VendorStatDetailModal({ type, vendor, onClose }) {
                           {dateStr}
                           <span style={{ display: "block", fontSize: "0.75rem", color: "#9ca3b4", marginTop: "2px" }}>{timeStr}</span>
                         </td>
-                        <td style={{ padding: "12px 14px", color: "#1a1d2e", fontWeight: "500" }}>{t.student?.name || t.student?._id || "Student"}</td>
+                        <td style={{ padding: "12px 14px", color: "#1a1d2e", fontWeight: "500" }}>{t.accountHolder?.name || t.student?.name || t.customer?.name || "Account holder"}</td>
                         <td style={{ padding: "12px 14px", color: "#10b981", fontWeight: "600" }}>{formatWholeRupees(Number(t.amount || 0))}</td>
                         <td style={{ padding: "12px 14px", color: "#7c8497", fontSize: "0.75rem" }}>{t._id}</td>
                         <td style={{ padding: "12px 14px" }}>
@@ -658,8 +658,9 @@ function VendorDashboardHomePage({ vendor, onShowTransactions }) {
 
   const formattedTransactions = useMemo(() => {
     return rawTransactions.slice(0, 5).map((t) => {
-      const customerName = t.student?.name || "Campus Student";
-      const customerIdVal = t.student?.email || "student@campus.edu";
+      const payer = t.accountHolder || t.student || t.customer;
+      const customerName = payer?.name || "Campus account holder";
+      const customerIdVal = payer?.email || "-";
 
       const d = new Date(t.createdAt);
       const dateStr = d.toLocaleDateString("en-US", {
@@ -741,7 +742,7 @@ function VendorDashboardHomePage({ vendor, onShowTransactions }) {
         </div>
         <div>
           <h2>Payment QR Code</h2>
-          <p>Students can scan this QR code or use your vendor ID to make payments to your store.</p>
+          <p>Students and Customers can scan this QR code or use your vendor ID to make payments to your store.</p>
           <div style={{ margin: "10px 0 20px 0", fontSize: "14px", color: "#4a5568" }}>
             <strong>Your Vendor ID:</strong> <code style={{ background: "#edf2f7", padding: "4px 8px", borderRadius: "4px" }}>{vendor?.id || vendor?._id || "Loading..."}</code>
           </div>

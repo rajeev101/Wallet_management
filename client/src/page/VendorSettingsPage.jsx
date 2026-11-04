@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getProfile, updateProfile } from "../api/auth";
+import ChangePasswordForm from "../components/common/ChangePasswordForm";
 
 const getStoredVendor = () => {
   try {
@@ -11,6 +12,7 @@ const getStoredVendor = () => {
       phone: storedUser.phone || "",
       profilePicture: storedUser.profilePicture || "",
       accountType: storedUser.accountType || "vendor",
+      vendorStatus: storedUser.vendorStatus,
       walletBalance: storedUser.walletBalance || 0,
     };
   } catch {
@@ -87,6 +89,7 @@ function VendorSettingsPage({ vendor, onProfileChange }) {
           phone: safeUser.phone || "",
           profilePicture: safeUser.profilePicture || "",
           accountType: safeUser.accountType || "vendor",
+          vendorStatus: safeUser.vendorStatus,
           walletBalance: safeUser.walletBalance || 0,
         };
 
@@ -210,6 +213,7 @@ function VendorSettingsPage({ vendor, onProfileChange }) {
         phone: safeUser.phone || "",
         profilePicture: safeUser.profilePicture || "",
         accountType: safeUser.accountType || "vendor",
+        vendorStatus: safeUser.vendorStatus,
         walletBalance: safeUser.walletBalance !== undefined ? safeUser.walletBalance : profile.walletBalance,
       };
 
@@ -258,6 +262,10 @@ function VendorSettingsPage({ vendor, onProfileChange }) {
             <div>
               <strong>Account Type</strong>
               <span>{formatAccountType(profile.accountType)}</span>
+            </div>
+            <div>
+              <strong>Account Status</strong>
+              <span>{profile.vendorStatus === "approved" ? "Active" : "Inactive"}</span>
             </div>
             <div>
               <strong>Email</strong>
@@ -428,6 +436,7 @@ function VendorSettingsPage({ vendor, onProfileChange }) {
           </form>
         </article>
       )}
+      {!isEditingProfile && <ChangePasswordForm />}
     </section>
   );
 }

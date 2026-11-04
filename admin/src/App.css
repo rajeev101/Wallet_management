@@ -1133,6 +1133,60 @@
   backdrop-filter: blur(2px);
 }
 
+.vendor-create-dialog {
+  width: min(540px, calc(100vw - 32px));
+  max-height: calc(100vh - 40px);
+  padding: 0;
+  border: 0;
+  border-radius: 20px;
+  color: #111827;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.25);
+}
+
+.vendor-create-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(3px);
+}
+
+.vendor-create-form {
+  padding: 24px;
+}
+
+.vendor-create-form fieldset {
+  display: grid;
+  gap: 18px;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.vendor-create-form label {
+  display: grid;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.vendor-create-form input:not([type="checkbox"]) {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #dce5f0;
+  border-radius: 10px;
+  padding: 12px;
+  font: inherit;
+}
+
+.vendor-create-form .vendor-active-option {
+  display: flex;
+  align-items: center;
+}
+
+.vendor-create-form > p {
+  color: #64748b;
+  line-height: 1.6;
+  font-size: 0.85rem;
+}
+
 .dashboard-details-modal {
   width: 100%;
   height: 100%;

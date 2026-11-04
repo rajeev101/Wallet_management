@@ -140,8 +140,9 @@ function VendorTransactionsPage({ vendor }) {
     return rawTransactions.map((t) => {
       const isRefund = t.type === "refund";
       const amountStr = `${isRefund ? "-" : ""}${formatWholeRupees(Number(t.amount || 0))}`;
-      const customerName = t.student?.name || "Campus Student";
-      const customerIdVal = t.student?.email || "student@campus.edu";
+      const payer = t.accountHolder || t.student || t.customer;
+      const customerName = payer?.name || "Campus account holder";
+      const customerIdVal = payer?.email || "-";
 
       const d = new Date(t.createdAt);
       const dateStr = d.toLocaleDateString("en-US", {

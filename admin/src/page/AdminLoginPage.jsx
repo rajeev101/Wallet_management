@@ -103,7 +103,7 @@ function AdminLoginPage({ setPage }) {
                 window.location.href = "/login";
               }}
             >
-              Use regular login
+              Student Login
             </button>
           </p>
         </form>

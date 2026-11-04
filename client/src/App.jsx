@@ -12,6 +12,8 @@ import { getProfile } from "./api/auth";
 const pagePaths = {
   login: "/login",
   register: "/register",
+  "customer-login": "/customer/login",
+  "customer-dashboard": "/customer/dashboard",
   forgot: "/forgot-password",
   "verify-otp": "/verify-otp",
   reset: "/reset-password",
@@ -25,11 +27,22 @@ const pathPages = Object.entries(pagePaths).reduce((acc, [page, path]) => {
 }, {});
 
 const getDashboardPage = (accountType) => {
+  if (accountType === "customer") return "customer-dashboard";
   if (accountType === "vendor") {
     return "vendor-dashboard";
   }
 
   return accountType === "student" ? "dashboard" : "login";
+};
+const dashboardPages = ["dashboard", "customer-dashboard", "vendor-dashboard"];
+
+const getCurrentPathPage = () => {
+  // Old bookmarks use the shared registration form, not a separate Customer page.
+  if (window.location.pathname === "/customer/register") {
+    window.history.replaceState({}, "", pagePaths.register);
+    return "register";
+  }
+  return pathPages[window.location.pathname];
 };
 
 function App() {
@@ -38,18 +51,18 @@ function App() {
   );
   const [authUser, setAuthUser] = useState(null);
   const [page, setPage] = useState(() => {
-    const pathPage = pathPages[window.location.pathname];
+    const pathPage = getCurrentPathPage();
     const token = sessionStorage.getItem("cpacToken");
     const accountType = sessionStorage.getItem("cpacUserType");
 
     if (!token) {
-      return pathPage && !["dashboard", "vendor-dashboard"].includes(pathPage)
+      return pathPage && !dashboardPages.includes(pathPage)
         ? pathPage
         : "login";
     }
 
     const dashboardPage = getDashboardPage(accountType);
-    return ["dashboard", "vendor-dashboard", "login"].includes(pathPage)
+    return [...dashboardPages, "login", "customer-login"].includes(pathPage)
       ? dashboardPage
       : pathPage || dashboardPage;
   });
@@ -65,13 +78,13 @@ function App() {
     }
     getProfile(token).then(({ user }) => {
       if (!active) return;
-      if (!user || !["student", "vendor"].includes(user.accountType)) throw new Error("Invalid account");
+      if (!user || !["student", "customer", "vendor"].includes(user.accountType)) throw new Error("Invalid account");
       sessionStorage.setItem("cpacUserType", user.accountType);
       sessionStorage.setItem("cpacUser", JSON.stringify(user));
       setAuthUser(user);
       setAuthStatus("authenticated");
       const desiredPage = getDashboardPage(user.accountType);
-      if (page === "dashboard" || page === "vendor-dashboard") {
+      if (dashboardPages.includes(page)) {
         if (page !== desiredPage || window.location.pathname !== pagePaths[desiredPage]) {
           window.history.replaceState({}, "", pagePaths[desiredPage]);
           setPage(desiredPage);
@@ -85,7 +98,7 @@ function App() {
       setAuthUser(null);
       setAuthStatus("unauthenticated");
       setPage((currentPage) =>
-        currentPage === "dashboard" || currentPage === "vendor-dashboard"
+        dashboardPages.includes(currentPage)
           ? "login"
           : currentPage
       );
@@ -97,9 +110,9 @@ function App() {
     const accountType = sessionStorage.getItem("cpacUserType");
     let resolvedPage = nextPage;
 
-    if (nextPage === "dashboard" || nextPage === "vendor-dashboard") {
+    if (dashboardPages.includes(nextPage)) {
       resolvedPage = getDashboardPage(accountType);
-      if (["dashboard", "vendor-dashboard"].includes(resolvedPage)) {
+      if (dashboardPages.includes(resolvedPage)) {
         try {
           const user = JSON.parse(sessionStorage.getItem("cpacUser") || "null");
           if (user?.accountType === accountType) {
@@ -112,7 +125,7 @@ function App() {
       }
     }
 
-    if (resolvedPage === "login") {
+    if (["login", "customer-login"].includes(resolvedPage)) {
       sessionStorage.removeItem("cpacToken");
       sessionStorage.removeItem("cpacUserType");
       sessionStorage.removeItem("cpacUser");
@@ -121,7 +134,9 @@ function App() {
     }
 
     const nextPath = pagePaths[resolvedPage] || "/login";
-    if (resolvedPage === "dashboard" && window.location.pathname === pagePaths.login) {
+    if (resolvedPage === "customer-dashboard" && window.location.pathname === pagePaths["customer-login"]) {
+      window.history.replaceState({ customerView: "dashboard" }, "", nextPath);
+    } else if (resolvedPage === "dashboard" && window.location.pathname === pagePaths.login) {
       // Replace the login entry so Back does not return to the login screen
       // immediately after a successful Student sign-in.
       window.history.replaceState({ studentView: "dashboard" }, "", nextPath);
@@ -136,7 +151,7 @@ function App() {
 
   useEffect(() => {
     const handlePopState = () => {
-      setPage(pathPages[window.location.pathname] || "login");
+      setPage(getCurrentPathPage() || "login");
     };
 
     window.addEventListener("popstate", handlePopState);
@@ -150,30 +165,37 @@ function App() {
     return <div role="status" aria-live="polite">Loading your account…</div>;
   }
 
-  if ((page === "dashboard" || page === "vendor-dashboard") && (!token || authStatus !== "authenticated")) {
-    return <LoginPage setPage={navigate} />;
+  if (dashboardPages.includes(page) && (!token || authStatus !== "authenticated")) {
+    return <LoginPage setPage={navigate} accountType={page === "customer-dashboard" ? "customer" : undefined} />;
   }
 
   if ((page === "dashboard" && authUser?.accountType !== "student") ||
+      (page === "customer-dashboard" && authUser?.accountType !== "customer") ||
       (page === "vendor-dashboard" && authUser?.accountType !== "vendor")) {
     return <LoginPage setPage={navigate} />;
   }
 
+  const recoveryNavigate = (nextPage) => navigate(nextPage === "login" && sessionStorage.getItem("cpacRecoveryRole") === "customer" ? "customer-login" : nextPage);
+
   switch (page) {
+    case "customer-login":
+      return <LoginPage key="customer-login" setPage={navigate} accountType="customer" />;
     case "register":
       return <RegisterPage setPage={navigate} />;
 
     case "forgot":
-      return <ForgotPasswordPage setPage={navigate} setForgotPasswordEmail={setForgotPasswordEmail} />;
+      return <ForgotPasswordPage setPage={recoveryNavigate} setForgotPasswordEmail={setForgotPasswordEmail} />;
 
     case "verify-otp":
-      return <VerifyOTPPage setPage={navigate} forgotPasswordEmail={forgotPasswordEmail} />;
+      return <VerifyOTPPage setPage={recoveryNavigate} forgotPasswordEmail={forgotPasswordEmail} />;
 
     case "reset":
-      return <ResetPasswordPage setPage={navigate} forgotPasswordEmail={forgotPasswordEmail} />;
+      return <ResetPasswordPage setPage={recoveryNavigate} forgotPasswordEmail={forgotPasswordEmail} />;
 
     case "dashboard":
       return <StudentDashboardPage setPage={navigate} />;
+    case "customer-dashboard":
+      return <StudentDashboardPage key="customer-dashboard" setPage={navigate} role="customer" />;
 
     case "vendor-dashboard":
       return <VendorDashboardPage setPage={navigate} />;

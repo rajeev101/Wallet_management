@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  approveVendor,
+  activateVendor,
   getAdminStats,
   getAdminStudents,
+  getAdminCustomers,
   getAdminTransactions,
   getAdminVendors,
-  rejectVendor,
+  deactivateVendor,
   getAdminWalletRequests,
   updateWalletRequestStatus,
   getNotifications,
   clearNotifications,
 } from "../api/admin";
 import { getProfile, updateProfile } from "../api/auth";
+import VendorCreateDialog from "../components/common/VendorCreateDialog";
 
 const formatNumber = (value) => new Intl.NumberFormat("en-US").format(Number(value || 0));
 const formatMoney = (value) => `₹${formatNumber(Math.round(Number(value || 0)))}`;
@@ -228,36 +230,6 @@ const fallbackStudents = [
   },
 ];
 
-const fallbackVendors = [
-  {
-    _id: "V001",
-    name: "Campus Cafe",
-    owner: "Robert Brown",
-    email: "cafe@campus.edu",
-    phone: "+1 234 567 8900",
-    vendorStatus: "approved",
-    totalSales: 12450,
-  },
-  {
-    _id: "V002",
-    name: "Library Store",
-    owner: "Emma Wilson",
-    email: "library@campus.edu",
-    phone: "+1 234 567 8901",
-    vendorStatus: "approved",
-    totalSales: 8320,
-  },
-  {
-    _id: "V003",
-    name: "Sports Shop",
-    owner: "James Davis",
-    email: "sports@campus.edu",
-    phone: "+1 234 567 8902",
-    vendorStatus: "rejected",
-    totalSales: 5670,
-  },
-];
-
 const getStoredAdmin = () => {
   try {
     return JSON.parse(sessionStorage.getItem("cpacUser") || "{}");
@@ -299,11 +271,11 @@ const getStudentTransactionRecords = (transactions, student) => {
 
   return transactions.filter((transaction) => {
     if (transaction.type === "payment") {
-      return isSameUser(transaction.student || transaction.fromWallet?.owner, student);
+      return isSameUser(transaction.accountHolder || transaction.student || transaction.fromWallet?.owner, student);
     }
 
     if (transaction.type === "wallet_topup" || transaction.type === "refund") {
-      return isSameUser(transaction.student || transaction.toWallet?.owner, student);
+      return isSameUser(transaction.accountHolder || transaction.student || transaction.toWallet?.owner, student);
     }
 
     return isSameUser(transaction.student || transaction.fromWallet?.owner || transaction.toWallet?.owner, student);
@@ -351,7 +323,9 @@ function AdminDashboardPage({ setPage }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [stats, setStats] = useState(null);
   const [students, setStudents] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [vendors, setVendors] = useState([]);
+  const [isCreatingVendor, setIsCreatingVendor] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState({ text: "", view: "" });
@@ -453,25 +427,29 @@ function AdminDashboardPage({ setPage }) {
     }
 
     try {
-      const [statsData, studentsData, vendorsData, transactionsData, walletRequestsData] = await Promise.all([
+      const [statsData, studentsData, vendorsData, transactionsData, walletRequestsData, customersData] = await Promise.all([
         getAdminStats(),
         getAdminStudents(query),
         getAdminVendors(query),
         getAdminTransactions(),
         getAdminWalletRequests(),
+        getAdminCustomers(query),
       ]);
 
       setStats(statsData.stats);
       setStudents(studentsData.students || []);
+      setCustomers(customersData.customers || []);
       setVendors(vendorsData.vendors || []);
       setTransactions(transactionsData.transactions || []);
 
       const formattedRequests = (walletRequestsData.requests || []).map((req) => {
         const date = new Date(req.createdAt);
+        const holder = req.accountHolder || req.student || req.customer;
+        const prefix = holder?.accountType === "customer" ? "CUS" : "STU";
         return {
           id: req._id || req.id,
-          student: req.student?.name || "Student",
-          studentId: req.student?._id ? `STU${req.student._id.slice(-5).toUpperCase()}` : "STU12345",
+          student: holder?.name || "Account holder",
+          studentId: holder?._id ? `${prefix}${holder._id.slice(-5).toUpperCase()}` : "-",
           amount: req.amount,
           requestDate: date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
           requestTime: date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
@@ -603,9 +581,9 @@ function AdminDashboardPage({ setPage }) {
     clearAlerts();
 
     try {
-      const request = action === "approve" ? approveVendor : rejectVendor;
+      const request = action === "activate" ? activateVendor : deactivateVendor;
       await request(vendorId);
-      showMessage(`Vendor ${action === "approve" ? "approved" : "rejected"} successfully.`);
+      showMessage(`Vendor ${action === "activate" ? "activated" : "deactivated"} successfully.`);
       await loadAdminData(search);
     } catch (statusError) {
       showError(statusError.message);
@@ -753,7 +731,7 @@ function AdminDashboardPage({ setPage }) {
         const statusText = transaction.status || "Completed";
         return [
           `TXN${String(index + 1).padStart(3, "0")}`,
-          transaction.student?.name || "-",
+          transaction.accountHolder?.name || transaction.student?.name || "-",
           transaction.vendor?.name || "Wallet Top-up",
           formatMoney(transaction.amount),
           <span className={`transaction-status ${String(statusText).toLowerCase()}`}>
@@ -766,14 +744,18 @@ function AdminDashboardPage({ setPage }) {
         ];
       })
     : fallbackTransactions;
-  const visibleStudents = students.length ? students : fallbackStudents;
+  const isCustomerView = activeView === "customers";
+  const payerLabel = isCustomerView ? "Customer" : "Student";
+  const payerPrefix = isCustomerView ? "CUS" : "STU";
+  const payerAccounts = isCustomerView ? customers : students;
+  const visibleStudents = isCustomerView ? customers : students.length ? students : fallbackStudents;
   const filteredStudents = visibleStudents.filter((student, index) => {
     const query = search.trim().toLowerCase();
     if (!query) return true;
 
     const studentId = student._id?.startsWith("STU")
       ? student._id
-      : `STU${String(index + 12345)}`;
+      : isCustomerView ? `CUS${student._id.slice(-5).toUpperCase()}` : `STU${String(index + 12345)}`;
 
     return [
       student.name,
@@ -783,16 +765,15 @@ function AdminDashboardPage({ setPage }) {
     ].some((value) => String(value || "").toLowerCase().includes(query));
   });
 
-  const averageStudentBalance = students.length
-    ? actualTotalBalance / students.length
-    : (stats?.averageWalletBalance ?? 0);
+  const payerTotalBalance = payerAccounts.reduce((total, account) => total + Number(account.walletBalance || 0), 0);
+  const averageStudentBalance = payerAccounts.length ? payerTotalBalance / payerAccounts.length : 0;
   const studentStats = [
-    ["Total Students", formatNumber(stats?.totalStudents ?? students.length)],
-    ["Active Users", formatNumber(stats?.totalStudents ?? students.length), "green"],
-    ["Total Balance", formatMoney(actualTotalBalance)],
+    [`Total ${payerLabel}s`, formatNumber(payerAccounts.length)],
+    ["Active Users", formatNumber(payerAccounts.length), "green"],
+    ["Total Balance", formatMoney(payerTotalBalance)],
     ["Avg. Balance", `₹${averageStudentBalance.toFixed(2)}`],
   ];
-  const visibleVendors = vendors.length ? vendors : fallbackVendors;
+  const visibleVendors = vendors;
   const filteredVendors = visibleVendors.filter((vendor, index) => {
     const query = search.trim().toLowerCase();
     if (!query) return true;
@@ -857,13 +838,15 @@ function AdminDashboardPage({ setPage }) {
   const adminInitials = getNameInitials(adminDisplayName);
 
   const filteredTransactions = transactions.filter((transaction) => {
+    const holder = transaction.accountHolder || transaction.student || transaction.customer;
     const type = String(transaction.type || "").toLowerCase();
     const isStudentTransaction = type.includes("student") || type.includes("wallet") || type.includes("topup") || (transaction.student && !transaction.vendor);
     const isVendorTransaction = type.includes("vendor") || type.includes("payment") || type.includes("purchase") || transaction.vendor;
 
     if (transactionTab === "student") {
-      return isStudentTransaction;
+      return holder?.accountType === "student" || (!holder?.accountType && isStudentTransaction);
     }
+    if (transactionTab === "customer") return holder?.accountType === "customer";
     return isVendorTransaction;
   });
 
@@ -926,6 +909,7 @@ function AdminDashboardPage({ setPage }) {
           {[
             ["dashboard", "Dashboard", "grid"],
             ["students", "Students", "students"],
+            ["customers", "Customers", "students"],
             ["vendors", "Vendors", "store"],
             ["transactions", "Transactions", "swap"],
             ["wallet", "Wallet", "wallet"],
@@ -955,8 +939,8 @@ function AdminDashboardPage({ setPage }) {
         <header className="admin-navbar">
           <div>
             <h1>
-              {activeView === "students"
-                ? "Student Management"
+              {["students", "customers"].includes(activeView)
+                ? `${payerLabel} Management`
                 : activeView === "vendors"
                   ? "Vendor Management"
                   : activeView === "wallet"
@@ -967,7 +951,7 @@ function AdminDashboardPage({ setPage }) {
                         ? "Edit Profile"
                       : pageTitle(activeView)}
             </h1>
-            <p>{activeView === "students" ? "Manage students and wallet balances" : today}</p>
+            <p>{["students", "customers"].includes(activeView) ? `Manage ${payerLabel.toLowerCase()}s and wallet balances` : today}</p>
           </div>
 
           <button
@@ -1084,7 +1068,7 @@ function AdminDashboardPage({ setPage }) {
                   <div className="admin-welcome-copy">
                     <p>Welcome back, Admin</p>
                     <h2>Manage Your Campus Wallet</h2>
-                    <span>Track students, vendors, transactions and wallet activities in one place.</span>
+                    <span>Track students, customers, vendors, transactions and wallet activities in one place.</span>
                   </div>
                   <div className="admin-welcome-art" aria-hidden="true">
                     <span className="admin-art-orbit admin-art-orbit-one" />
@@ -1136,16 +1120,16 @@ function AdminDashboardPage({ setPage }) {
                     <button type="button" onClick={() => navigateToView("transactions")}>View All</button>
                   </div>
                   <AdminTable
-                    columns={["Transaction ID", "Student", "Vendor", "Amount", "Status", "Time"]}
+                    columns={["Transaction ID", "Account Holder", "Vendor", "Amount", "Status", "Time"]}
                     rows={recentRows}
                     emptyText="No transactions found."
                   />
                 </section>
               </>
             )}
-            {activeView === "students" && (
+            {["students", "customers"].includes(activeView) && (
               <>
-                <section className="student-management-stats" aria-label="Student statistics">
+                <section className="student-management-stats" aria-label={`${payerLabel} statistics`}>
                   {studentStats.map(([label, value, tone]) => (
                     <article key={label}>
                       <span>{label}</span>
@@ -1154,12 +1138,12 @@ function AdminDashboardPage({ setPage }) {
                   ))}
                 </section>
 
-                <section className="student-management-tools" aria-label="Student tools">
+                <section className="student-management-tools" aria-label={`${payerLabel} tools`}>
                   <form className="student-management-search" onSubmit={handleSearch}>
                     <AdminIcon type="search" />
                     <input
                       type="search"
-                      placeholder="Search students by name, email, phone, or ID..."
+                      placeholder={`Search ${payerLabel.toLowerCase()}s by name, email, phone, or ID...`}
                       value={search}
                       onChange={(event) => setSearch(event.target.value)}
                     />
@@ -1167,10 +1151,10 @@ function AdminDashboardPage({ setPage }) {
                   <button
                     className="student-add-button"
                     type="button"
-                    onClick={() => showMessage("Students can be added from the signup flow.")}
+                    onClick={() => showMessage(`${payerLabel}s can be added from their separate signup flow.`)}
                   >
                     <span>+</span>
-                    Add Student
+                    Add {payerLabel}
                   </button>
                 </section>
 
@@ -1179,7 +1163,7 @@ function AdminDashboardPage({ setPage }) {
                     <table>
                       <thead>
                         <tr>
-                          <th>Student ID</th>
+                          <th>{payerLabel} ID</th>
                           <th>Name</th>
                           <th>Phone</th>
                           <th>Wallet Balance</th>
@@ -1191,7 +1175,7 @@ function AdminDashboardPage({ setPage }) {
                         {filteredStudents.map((student, index) => {
                           const studentId = student._id?.startsWith("STU")
                             ? student._id
-                            : `STU${String(index + 12345)}`;
+                            : isCustomerView ? `${payerPrefix}${student._id.slice(-5).toUpperCase()}` : `STU${String(index + 12345)}`;
 
                           return (
                             <tr key={student._id || student.email}>
@@ -1225,6 +1209,7 @@ function AdminDashboardPage({ setPage }) {
                             </tr>
                           );
                         })}
+                        {!filteredStudents.length && <tr><td colSpan={6}>No {payerLabel.toLowerCase()}s found.</td></tr>}
                       </tbody>
                     </table>
                   </div>
@@ -1247,7 +1232,7 @@ function AdminDashboardPage({ setPage }) {
                   <button
                     className="vendor-add-button"
                     type="button"
-                    onClick={() => showMessage("Vendors can be added from the signup flow.")}
+                    onClick={() => setIsCreatingVendor(true)}
                   >
                     <span>+</span>
                     Add Vendor
@@ -1293,24 +1278,30 @@ function AdminDashboardPage({ setPage }) {
                                 <div className="vendor-row-actions">
                                   <button
                                     type="button"
-                                    aria-label={`Show QR code for ${vendor.name}`}
-                                    onClick={() => showMessage(`QR tools for ${vendor.name} are ready for setup.`)}
+                                    aria-label={`View ${vendor.name}`}
+                                    title="View vendor details"
+                                    onClick={() => {
+                                      openDashboardModal("vendors");
+                                      selectDashboardItem(vendor);
+                                    }}
                                   >
                                     <AdminIcon type="qr" />
                                   </button>
                                   <button
                                     type="button"
-                                    aria-label={`Approve ${vendor.name}`}
-                                    onClick={() => handleVendorStatus(vendor._id, "approve")}
-                                    disabled={vendor._id?.startsWith("V")}
+                                    aria-label={`Activate ${vendor.name}`}
+                                    title="Activate vendor"
+                                    onClick={() => handleVendorStatus(vendor._id, "activate")}
+                                    disabled={vendor.vendorStatus === "approved"}
                                   >
                                     <AdminIcon type="edit" />
                                   </button>
                                   <button
                                     type="button"
-                                    aria-label={`Reject ${vendor.name}`}
-                                    onClick={() => handleVendorStatus(vendor._id, "reject")}
-                                    disabled={vendor._id?.startsWith("V")}
+                                    aria-label={`Deactivate ${vendor.name}`}
+                                    title="Deactivate vendor"
+                                    onClick={() => handleVendorStatus(vendor._id, "deactivate")}
+                                    disabled={vendor.vendorStatus === "rejected"}
                                   >
                                     <AdminIcon type="trash" />
                                   </button>
@@ -1319,6 +1310,7 @@ function AdminDashboardPage({ setPage }) {
                             </tr>
                           );
                         })}
+                        {!filteredVendors.length && <tr><td colSpan={8}>No vendors found. Create a vendor to send onboarding credentials.</td></tr>}
                       </tbody>
                     </table>
                   </div>
@@ -1339,6 +1331,9 @@ function AdminDashboardPage({ setPage }) {
                   >
                     Student Transactions
                   </button>
+                  <button type="button" className={transactionTab === "customer" ? "active" : ""} onClick={() => setTransactionTab("customer")}>
+                    Customer Transactions
+                  </button>
                   <button
                     type="button"
                     className={transactionTab === "vendor" ? "active" : ""}
@@ -1348,11 +1343,11 @@ function AdminDashboardPage({ setPage }) {
                   </button>
                 </div>
                 <AdminTable
-                  columns={["Student", "Vendor", "Type", "Amount", "Status", "Date"]}
+                  columns={["Account Holder", "Vendor", "Type", "Amount", "Status", "Date"]}
                   rows={filteredTransactions.map((transaction) => {
                     const statusText = transaction.status || "Completed";
                     return [
-                      transaction.student?.name || "-",
+                      transaction.accountHolder?.name || transaction.student?.name || "-",
                       transaction.vendor?.name || "-",
                       transaction.type?.replace("_", " ") || "payment",
                       formatMoney(transaction.amount),
@@ -1499,7 +1494,7 @@ function AdminDashboardPage({ setPage }) {
                       <thead>
                         <tr>
                           <th>Request ID</th>
-                          <th>Student</th>
+                          <th>Account Holder</th>
                           <th>Amount</th>
                           <th>Request Date</th>
                           <th>Status</th>
@@ -1575,7 +1570,7 @@ function AdminDashboardPage({ setPage }) {
         {dashboardModal && (
           <DashboardDetailsModal
             type={dashboardModal}
-            students={students}
+            students={dashboardModal === "wallet" ? [...students, ...customers] : students}
             vendors={vendors}
             transactions={transactions}
             selectedItem={selectedDashboardItem}
@@ -1587,6 +1582,14 @@ function AdminDashboardPage({ setPage }) {
           />
         )}
       </main>
+      {isCreatingVendor && <VendorCreateDialog
+        onClose={() => setIsCreatingVendor(false)}
+        onCreated={(text) => {
+          setIsCreatingVendor(false);
+          showMessage(text);
+          loadAdminData(search);
+        }}
+      />}
     </div>
   );
 }
@@ -1611,7 +1614,7 @@ function DashboardDetailsModal({
     students: "All Students",
     vendors: "All Vendors",
     transactions: "All Transactions",
-    wallet: "Student Wallet Balances",
+    wallet: "Student & Customer Wallet Balances",
   }[type];
 
   const studentTransactions = type === "vendors" ? [] : getStudentTransactionRecords(transactions, selectedItem);
@@ -1619,7 +1622,7 @@ function DashboardDetailsModal({
     type === "vendors" && selectedItem ? getVendorTransactionRecords(selectedItem) : [];
   const isStudentTransactionView = Boolean(studentTransactionTarget);
   const isVendorTransactionView = Boolean(vendorTransactionTarget);
-  const detailTitle = type === "vendors" ? "Vendor Details" : "Student Details";
+  const detailTitle = type === "vendors" ? "Vendor Details" : selectedItem?.accountType === "customer" ? "Customer Details" : "Student Details";
   const isPeopleList = type === "students" || type === "vendors" || type === "wallet";
   const people = type === "vendors" ? vendors : students;
   const canSearchPeople = type === "students" || type === "vendors";
@@ -1675,7 +1678,7 @@ function DashboardDetailsModal({
               <p>
                 {type === "transactions"
                   ? `${transactions.length} transaction${transactions.length === 1 ? "" : "s"}`
-                  : `${people.length} ${type === "vendors" ? "vendor" : "student"}${people.length === 1 ? "" : "s"}`}
+                  : `${people.length} ${type === "vendors" ? "vendor" : type === "wallet" ? "account holder" : "student"}${people.length === 1 ? "" : "s"}`}
               </p>
             )}
           </div>
@@ -1749,8 +1752,8 @@ function PersonDetails({ person, isVendor, totalSales, totalTransactions, onShow
     { label: "Name", value: person.name || "-" },
     { label: "Email", value: person.email || "-" },
     { label: "Phone", value: person.phone || "-" },
-    { label: "Account type", value: isVendor ? "Vendor" : "Student" },
-    { label: "Account status", value: isVendor ? pageTitle(person.vendorStatus || "pending") : pageTitle(person.accountStatus || "active") },
+    { label: "Account type", value: isVendor ? "Vendor" : person.accountType === "customer" ? "Customer" : "Student" },
+    { label: "Account status", value: isVendor ? (person.vendorStatus === "approved" ? "Active" : person.vendorStatus === "rejected" ? "Inactive" : "Pending") : pageTitle(person.accountStatus || "active") },
     { label: "Wallet balance", value: formatMoney(person.walletBalance) },
     ...(isVendor ? [{ label: "Total amount received", value: formatMoney(totalSales) }] : []),
     { label: "Transactions", value: formatNumber(totalTransactions), actionLabel: "Show More", onAction: onShowTransactions },
@@ -1848,7 +1851,7 @@ function VendorReceivedTransactionsPage({ vendor, transactions }) {
 
   const getReceivedTransactionRow = (transaction) => {
     const createdAt = transaction.createdAt ? new Date(transaction.createdAt) : null;
-    const student = transaction.student || transaction.fromWallet?.owner;
+    const student = transaction.accountHolder || transaction.student || transaction.fromWallet?.owner;
 
     return {
       id: transaction._id || transaction.id || "-",
@@ -1863,8 +1866,8 @@ function VendorReceivedTransactionsPage({ vendor, transactions }) {
   const handleExportReceivedTransactions = () => {
     const headers = [
       "Transaction ID",
-      "Student Name",
-      "Student Email",
+      "Payer Name",
+      "Payer Email",
       "Amount",
       "Date & Time",
       "Payment Status",
@@ -1957,8 +1960,8 @@ function VendorReceivedTransactionsPage({ vendor, transactions }) {
               <thead>
                 <tr>
                   <th>Transaction ID</th>
-                  <th>Student Name</th>
-                  <th>Student Email</th>
+                  <th>Payer Name</th>
+                  <th>Payer Email</th>
                   <th>Amount</th>
                   <th>Date &amp; Time</th>
                   <th>Payment Status</th>
@@ -2020,6 +2023,7 @@ function VendorReceivedTransactionsPage({ vendor, transactions }) {
   );
 }
 function StudentTransactionPanel({ student, transactions }) {
+  const roleLabel = student?.accountType === "customer" ? "Customer" : "Student";
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -2141,7 +2145,7 @@ function StudentTransactionPanel({ student, transactions }) {
       totalBalance: formatMoney(balances.totalBalance),
       transactionType,
       vendorName: getTransactionPartyName(transaction.vendor || transaction.toWallet?.owner),
-      studentName: getTransactionPartyName(transaction.student || transaction.fromWallet?.owner || transaction.toWallet?.owner),
+      studentName: getTransactionPartyName(transaction.accountHolder || transaction.student || transaction.fromWallet?.owner || transaction.toWallet?.owner),
       paymentStatus: transaction.status || "completed",
     };
   };
@@ -2156,7 +2160,7 @@ function StudentTransactionPanel({ student, transactions }) {
       "Total Balance",
       "Transaction Type",
       "Vendor Name",
-      "Student Name",
+      `${roleLabel} Name`,
       "Payment Status",
     ];
     const rows = sortedTransactions.map((transaction) => {
@@ -2180,7 +2184,7 @@ function StudentTransactionPanel({ student, transactions }) {
 
   const getExportFileBaseName = () => {
     const studentName = sanitizeFileNamePart(student?.name);
-    return `Student_Transactions_${studentName}_${getDateStamp()}`;
+    return `${roleLabel}_Transactions_${studentName}_${getDateStamp()}`;
   };
 
   const handleExportTransactions = () => {
@@ -2201,7 +2205,7 @@ function StudentTransactionPanel({ student, transactions }) {
   }
 
   if (!studentTransactions.length) {
-    return <p className="dashboard-modal-empty">No transactions found for this student.</p>;
+    return <p className="dashboard-modal-empty">No transactions found for this {roleLabel.toLowerCase()}.</p>;
   }
 
   return (
@@ -2277,7 +2281,7 @@ function StudentTransactionPanel({ student, transactions }) {
                   <th>Total Balance</th>
                   <th>Transaction Type</th>
                   <th>Vendor Name</th>
-                  <th>Student Name</th>
+                  <th>{roleLabel} Name</th>
                   <th>Payment Status</th>
                 </tr>
               </thead>
@@ -2353,9 +2357,9 @@ function TransactionDetailsList({ transactions }) {
         return (
           <article key={transaction._id || index} className="dashboard-transaction-row">
             <div>
-              <strong>{transaction.student?.name || "Wallet top-up"}</strong>
+              <strong>{transaction.accountHolder?.name || transaction.student?.name || "Wallet top-up"}</strong>
               <span>→</span>
-              <strong>{transaction.vendor?.name || "Student wallet"}</strong>
+              <strong>{transaction.vendor?.name || `${transaction.accountHolder?.accountType === "customer" ? "Customer" : "Student"} wallet`}</strong>
               <p>{transaction.description || pageTitle(String(transaction.type || "transaction").replaceAll("_", " "))}</p>
             </div>
             <div className="dashboard-transaction-meta">

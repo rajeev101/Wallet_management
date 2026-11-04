@@ -9,6 +9,8 @@ function RegisterForm({ setPage }) {
   const [form, setForm] = useState({
     name: "",
     email: "",
+    student_id: "",
+    samagra_id: "",
     password: "",
     confirmPassword: "",
   });
@@ -36,6 +38,12 @@ function RegisterForm({ setPage }) {
       return;
     }
 
+    const identityField = accountType === "student" ? "student_id" : "samagra_id";
+    if (!form[identityField].trim()) {
+      setStatus(accountType === "student" ? "Student ID is required." : "Samagra ID is required.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -44,9 +52,10 @@ function RegisterForm({ setPage }) {
         email: form.email,
         password: form.password,
         accountType,
+        [identityField]: form[identityField].trim(),
       });
       setStatus("Account created. You can sign in now.");
-      setPage("login");
+      setPage(accountType === "customer" ? "customer-login" : "login");
     } catch (error) {
       setStatus(error.message);
     } finally {
@@ -83,18 +92,32 @@ function RegisterForm({ setPage }) {
         <button
           className={accountType === "student" ? "active" : ""}
           type="button"
+          aria-pressed={accountType === "student"}
           onClick={() => setAccountType("student")}
         >
           Student
         </button>
         <button
-          className={accountType === "vendor" ? "active" : ""}
+          className={accountType === "customer" ? "active" : ""}
           type="button"
-          onClick={() => setAccountType("vendor")}
+          aria-pressed={accountType === "customer"}
+          onClick={() => setAccountType("customer")}
         >
-          Vendor
+          Customer
         </button>
       </div>
+
+      {accountType && (
+        <InputField
+          key={accountType}
+          label={accountType === "student" ? "Student ID" : "Samagra ID"}
+          name={accountType === "student" ? "student_id" : "samagra_id"}
+          placeholder={accountType === "student" ? "Enter your student ID" : "Enter your Samagra ID"}
+          value={accountType === "student" ? form.student_id : form.samagra_id}
+          onChange={handleChange}
+          autoComplete="off"
+        />
+      )}
 
       <PasswordInput
         label="Password"
@@ -123,7 +146,7 @@ function RegisterForm({ setPage }) {
         <button
           className="link-button"
           type="button"
-          onClick={() => setPage("login")}
+          onClick={() => setPage(accountType === "customer" ? "customer-login" : "login")}
         >
           Sign In
         </button>

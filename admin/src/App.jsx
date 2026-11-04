@@ -18,6 +18,9 @@ const pagePaths = {
   denied: "/access-denied",
 };
 
+const getUserDashboardPath = (accountType) =>
+  accountType === "vendor" ? "/vendor/dashboard" : accountType === "customer" ? "/customer/dashboard" : "/student/dashboard";
+
 const pathPages = Object.entries(pagePaths).reduce((acc, [page, path]) => {
   acc[path] = page;
   return acc;
@@ -53,12 +56,12 @@ function App() {
     }
     getProfile(token).then(({ user }) => {
       if (!active) return;
-      if (!user || !["student", "vendor", "admin"].includes(user.accountType)) throw new Error("Invalid session");
+      if (!user || !["student", "customer", "vendor", "admin"].includes(user.accountType)) throw new Error("Invalid session");
       sessionStorage.setItem("cpacUser", JSON.stringify(user));
       sessionStorage.setItem("cpacUserType", user.accountType);
       if (user.accountType !== "admin") {
         setAuthStatus("denied");
-        const targetPath = user.accountType === "vendor" ? "/vendor/dashboard" : "/student/dashboard";
+        const targetPath = getUserDashboardPath(user.accountType);
         window.location.assign(targetPath);
         return;
       }
@@ -92,10 +95,7 @@ function App() {
       if (accountType === "admin") {
         resolvedPage = "admin-dashboard";
       } else {
-        window.location.href =
-          accountType === "vendor"
-            ? "/vendor/dashboard"
-            : "/student/dashboard";
+        window.location.href = getUserDashboardPath(accountType);
         return;
       }
     }
@@ -104,7 +104,7 @@ function App() {
       if (!token) {
         resolvedPage = "admin-login";
       } else if (accountType !== "admin") {
-        window.location.assign(accountType === "vendor" ? "/vendor/dashboard" : "/student/dashboard");
+        window.location.assign(getUserDashboardPath(accountType));
         return;
       } else {
         try {
