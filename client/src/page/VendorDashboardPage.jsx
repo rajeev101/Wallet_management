@@ -93,7 +93,7 @@ function VendorDashboardPage({ setPage }) {
     sessionStorage.removeItem("cpacToken");
     sessionStorage.removeItem("cpacUserType");
     sessionStorage.removeItem("cpacUser");
-    setPage("login");
+    setPage("vendor-login");
   };
 
   const changeView = (view) => {

@@ -13,6 +13,7 @@ const pagePaths = {
   login: "/login",
   register: "/register",
   "customer-login": "/customer/login",
+  "vendor-login": "/vendor/login",
   "customer-dashboard": "/customer/dashboard",
   forgot: "/forgot-password",
   "verify-otp": "/verify-otp",
@@ -35,6 +36,7 @@ const getDashboardPage = (accountType) => {
   return accountType === "student" ? "dashboard" : "login";
 };
 const dashboardPages = ["dashboard", "customer-dashboard", "vendor-dashboard"];
+const getLoginPage = (dashboardPage) => dashboardPage === "vendor-dashboard" ? "vendor-login" : dashboardPage === "customer-dashboard" ? "customer-login" : "login";
 
 const getCurrentPathPage = () => {
   // Old bookmarks use the shared registration form, not a separate Customer page.
@@ -58,11 +60,11 @@ function App() {
     if (!token) {
       return pathPage && !dashboardPages.includes(pathPage)
         ? pathPage
-        : "login";
+        : getLoginPage(pathPage);
     }
 
     const dashboardPage = getDashboardPage(accountType);
-    return [...dashboardPages, "login", "customer-login"].includes(pathPage)
+    return [...dashboardPages, "login", "customer-login", "vendor-login"].includes(pathPage)
       ? dashboardPage
       : pathPage || dashboardPage;
   });
@@ -99,7 +101,7 @@ function App() {
       setAuthStatus("unauthenticated");
       setPage((currentPage) =>
         dashboardPages.includes(currentPage)
-          ? "login"
+          ? getLoginPage(currentPage)
           : currentPage
       );
     });
@@ -125,7 +127,7 @@ function App() {
       }
     }
 
-    if (["login", "customer-login"].includes(resolvedPage)) {
+    if (["login", "customer-login", "vendor-login"].includes(resolvedPage)) {
       sessionStorage.removeItem("cpacToken");
       sessionStorage.removeItem("cpacUserType");
       sessionStorage.removeItem("cpacUser");
@@ -140,7 +142,7 @@ function App() {
       // Replace the login entry so Back does not return to the login screen
       // immediately after a successful Student sign-in.
       window.history.replaceState({ studentView: "dashboard" }, "", nextPath);
-    } else if (resolvedPage === "vendor-dashboard" && window.location.pathname === pagePaths.login) {
+    } else if (resolvedPage === "vendor-dashboard" && window.location.pathname === pagePaths["vendor-login"]) {
       // Keep the Vendor login entry from becoming the immediate Back destination.
       window.history.replaceState({ vendorView: "dashboard" }, "", nextPath);
     } else {
@@ -166,7 +168,7 @@ function App() {
   }
 
   if (dashboardPages.includes(page) && (!token || authStatus !== "authenticated")) {
-    return <LoginPage setPage={navigate} accountType={page === "customer-dashboard" ? "customer" : undefined} />;
+    return <LoginPage setPage={navigate} accountType={page === "vendor-dashboard" ? "vendor" : page === "customer-dashboard" ? "customer" : undefined} />;
   }
 
   if ((page === "dashboard" && authUser?.accountType !== "student") ||
@@ -175,9 +177,14 @@ function App() {
     return <LoginPage setPage={navigate} />;
   }
 
-  const recoveryNavigate = (nextPage) => navigate(nextPage === "login" && sessionStorage.getItem("cpacRecoveryRole") === "customer" ? "customer-login" : nextPage);
+  const recoveryNavigate = (nextPage) => {
+    const role = sessionStorage.getItem("cpacRecoveryRole");
+    navigate(nextPage === "login" ? role === "vendor" ? "vendor-login" : role === "customer" ? "customer-login" : "login" : nextPage);
+  };
 
   switch (page) {
+    case "vendor-login":
+      return <LoginPage key="vendor-login" setPage={navigate} accountType="vendor" />;
     case "customer-login":
       return <LoginPage key="customer-login" setPage={navigate} accountType="customer" />;
     case "register":

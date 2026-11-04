@@ -10,6 +10,6 @@ exports.sendVendorOnboardingEmail = async ({ email, password }) => {
     from: `Campus Wallet <${process.env.EMAIL_USER}>`,
     to: email,
     subject: "Your vendor account - Campus Wallet",
-    text: `An administrator has created your Campus Wallet vendor account.\n\nLogin: ${process.env.CLIENT_URL || "http://localhost:3000"}/login\nEmail: ${email}\nTemporary password: ${password}\n\nChange this password in Settings after signing in. Your administrator controls account activation. Never share these credentials.`,
+    text: `An administrator has created your Campus Wallet vendor account.\n\nLogin: ${(process.env.CLIENT_URL || "http://localhost:3000").replace(/\/$/, "")}/vendor/login\nEmail: ${email}\nTemporary password: ${password}\n\nChange this password in Settings after signing in. Your administrator controls account activation. Never share these credentials.`,
   });
 };
