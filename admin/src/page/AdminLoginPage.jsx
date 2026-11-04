@@ -4,6 +4,7 @@ import Button from "../components/common/Button";
 import InputField from "../components/common/InputField";
 import Logo from "../components/common/Logo";
 import PasswordInput from "../components/common/PasswordInput";
+import { getClientUrl } from "../utils/clientUrl";
 
 function AdminLoginPage({ setPage }) {
   const [form, setForm] = useState({
@@ -95,12 +96,12 @@ function AdminLoginPage({ setPage }) {
           {status && <p className="form-status">{status}</p>}
 
           <p className="switch-text">
-            Student or vendor?
+            Are you a student?
             <button
               className="link-button"
               type="button"
               onClick={() => {
-                window.location.href = "/login";
+                window.location.href = getClientUrl("/login");
               }}
             >
               Student Login

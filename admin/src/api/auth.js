@@ -30,7 +30,7 @@ const request = async (path, payload, options = {}) => {
   return data;
 };
 
-export const adminLogin = (payload) => request("/auth/login", payload);
+export const adminLogin = (payload) => request("/auth/login", { ...payload, accountType: "admin" });
 
 export const getProfile = (token) =>
   request("/auth/profile", undefined, { method: "GET", token });

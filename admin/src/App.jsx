@@ -4,6 +4,9 @@ import AdminDashboardPage from "./page/AdminDashboardPage";
 import AdminLoginPage from "./page/AdminLoginPage";
 import AccessDeniedPage from "./page/AccessDeniedPage";
 import { getProfile } from "./api/auth";
+import { getClientUrl } from "./utils/clientUrl";
+
+const isClientRoute = () => /^\/(vendor|student|customer)(\/|$)/.test(window.location.pathname);
 
 const getPrefix = () => (window.location.pathname.startsWith("/admin") ? "/admin" : "");
 
@@ -27,6 +30,11 @@ const pathPages = Object.entries(pagePaths).reduce((acc, [page, path]) => {
 }, {});
 
 function App() {
+  useEffect(() => {
+    if (isClientRoute()) {
+      window.location.replace(getClientUrl(window.location.pathname + window.location.search));
+    }
+  }, []);
   const [authStatus, setAuthStatus] = useState(() =>
     sessionStorage.getItem("cpacToken") ? "loading" : "unauthenticated"
   );
@@ -51,7 +59,7 @@ function App() {
   useEffect(() => {
     let active = true;
     const token = sessionStorage.getItem("cpacToken");
-    if (!token || authStatus === "authenticated" || authStatus === "denied") {
+    if (isClientRoute() || !token || authStatus === "authenticated" || authStatus === "denied") {
       return () => { active = false; };
     }
     getProfile(token).then(({ user }) => {
@@ -62,7 +70,7 @@ function App() {
       if (user.accountType !== "admin") {
         setAuthStatus("denied");
         const targetPath = getUserDashboardPath(user.accountType);
-        window.location.assign(targetPath);
+        window.location.assign(getClientUrl(targetPath));
         return;
       }
       setAuthStatus("authenticated");
@@ -95,7 +103,7 @@ function App() {
       if (accountType === "admin") {
         resolvedPage = "admin-dashboard";
       } else {
-        window.location.href = getUserDashboardPath(accountType);
+        window.location.href = getClientUrl(getUserDashboardPath(accountType));
         return;
       }
     }
@@ -104,7 +112,7 @@ function App() {
       if (!token) {
         resolvedPage = "admin-login";
       } else if (accountType !== "admin") {
-        window.location.assign(getUserDashboardPath(accountType));
+        window.location.assign(getClientUrl(getUserDashboardPath(accountType)));
         return;
       } else {
         try {
@@ -146,7 +154,7 @@ function App() {
   const token = sessionStorage.getItem("cpacToken");
   const accountType = sessionStorage.getItem("cpacUserType");
 
-  if (token && authStatus === "loading") {
+  if (isClientRoute() || (token && authStatus === "loading")) {
     return <div role="status" aria-live="polite">Loading your account…</div>;
   }
 
