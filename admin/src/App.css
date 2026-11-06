@@ -6291,14 +6291,26 @@
     gap: 6px;
     min-width: 44px;
     min-height: 44px;
-    border: 1px solid #dbe4f0;
+    border: 1px solid rgba(255, 255, 255, 0.22);
     border-radius: 8px;
     padding: 0 12px;
-    background: #ffffff;
-    color: #111827;
+    background: linear-gradient(135deg, #62B5FF 0%, #3478F6 100%);
+    color: #ffffff;
     font: inherit;
     font-size: 0.9rem;
     cursor: pointer;
+    box-shadow: 0 3px 9px rgba(30, 89, 184, 0.22);
+    transition: box-shadow 180ms ease, filter 180ms ease, transform 120ms ease;
+  }
+
+  .admin-navbar .mobile-nav-toggle:hover {
+    box-shadow: 0 5px 12px rgba(30, 89, 184, 0.28);
+    filter: brightness(1.04);
+  }
+
+  .admin-navbar .mobile-nav-toggle:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 5px rgba(30, 89, 184, 0.22);
   }
 
   .admin-navbar-actions {
@@ -6324,11 +6336,41 @@
   }
 
   .admin-navbar {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-items: center;
+    gap: 10px;
     margin-right: -14px;
     margin-left: -14px;
     padding-right: 14px;
     padding-left: 14px;
+  }
+
+  .admin-navbar > div:first-child {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .admin-navbar .mobile-nav-toggle {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: start;
+  }
+
+  .admin-navbar .profile-trigger-area {
+    gap: 8px;
+  }
+
+  .admin-navbar .profile-summary {
+    max-width: min(7rem, 22vw);
+    overflow: hidden;
+    padding-left: 10px;
+  }
+
+  .admin-navbar .profile-summary strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .admin-navbar h1 {
@@ -6336,9 +6378,12 @@
   }
 
   .admin-navbar-actions {
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 10px;
+    grid-column: 2;
+    grid-row: 2;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: 8px;
   }
 
   .admin-stats-grid,
