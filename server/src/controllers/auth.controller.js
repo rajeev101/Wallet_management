@@ -153,8 +153,9 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Optional role selection leaves legacy login payloads unchanged.
-    if (req.body.accountType && String(req.body.accountType).toLowerCase() !== user.accountType) {
+    // Student/customer roles always come from the database, regardless of any
+    // legacy role field in a request. Preserve existing vendor/admin checks.
+    if (!["student", "customer"].includes(user.accountType) && req.body.accountType && String(req.body.accountType).toLowerCase() !== user.accountType) {
       return res.status(403).json({ success: false, message: "Use the login page for your account type." });
     }
 
