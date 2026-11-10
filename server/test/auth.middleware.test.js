@@ -36,6 +36,16 @@ test("role guard rejects a different authenticated role with 403", () => {
   assert.equal(result.responseStatus, 403);
 });
 
+test("student and customer roles cannot cross access role-protected endpoints", () => {
+  const studentOnCustomerEndpoint = invokeRoleGuard("student", "customer");
+  const customerOnStudentEndpoint = invokeRoleGuard("customer", "student");
+
+  assert.equal(studentOnCustomerEndpoint.nextCalled, false);
+  assert.equal(studentOnCustomerEndpoint.responseStatus, 403);
+  assert.equal(customerOnStudentEndpoint.nextCalled, false);
+  assert.equal(customerOnStudentEndpoint.responseStatus, 403);
+});
+
 test("role guard rejects a missing identity with 401", () => {
   const result = invokeRoleGuard(null, "student");
   assert.equal(result.nextCalled, false);

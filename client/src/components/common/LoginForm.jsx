@@ -7,7 +7,7 @@ import Button from "../common/Button";
 function LoginForm({ setPage, accountType }) {
   const isCustomer = accountType === "customer";
   const isVendor = accountType === "vendor";
-  const loginRole = accountType || "student";
+  const loginRole = isVendor ? "vendor" : accountType || "student";
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -32,19 +32,28 @@ function LoginForm({ setPage, accountType }) {
     sessionStorage.removeItem("cpacUser");
 
     try {
-      const data = await loginUser({ ...form, accountType: loginRole });
+      const data = await loginUser(isVendor ? { ...form, accountType: "vendor" } : form);
       if (!data?.success || !data.token || !data.user) {
         throw new Error(data?.message || "Unable to sign in. Please try again.");
       }
       const safeUser = { ...(data.user || {}) };
       delete safeUser.password;
-      if (safeUser.accountType !== loginRole) {
+      if (isVendor && safeUser.accountType !== "vendor") {
         throw new Error("Use the login page for your account type.");
+      }
+      if (!["student", "customer", "vendor"].includes(safeUser.accountType)) {
+        throw new Error("This account cannot sign in here.");
       }
       sessionStorage.setItem("cpacToken", data.token);
       sessionStorage.setItem("cpacUserType", safeUser.accountType);
       sessionStorage.setItem("cpacUser", JSON.stringify(safeUser));
-      setPage(isCustomer ? "customer-dashboard" : safeUser.accountType === "vendor" ? "vendor-dashboard" : "dashboard");
+      setPage(
+        safeUser.accountType === "customer"
+          ? "customer-dashboard"
+          : safeUser.accountType === "vendor"
+            ? "vendor-dashboard"
+            : "dashboard"
+      );
     } catch (error) {
       setStatus(error.message);
     } finally {
@@ -54,7 +63,7 @@ function LoginForm({ setPage, accountType }) {
 
   return (
     <form className="auth-form" onSubmit={handleSubmit}>
-      <h1>{isVendor ? "Vendor Sign In" : isCustomer ? "Customer Sign In" : "Student Sign In"}</h1>
+      <h1>{isVendor ? "Vendor Sign In" : "Sign In"}</h1>
 
       <InputField
         label="Email Address"
@@ -109,12 +118,14 @@ function LoginForm({ setPage, accountType }) {
         </button>
       </p>}
 
-      <p className="switch-text">
-        {isCustomer || isVendor ? "Are you a student?" : "Not a student?"}
-        <button className="link-button" type="button" onClick={() => setPage(isCustomer || isVendor ? "login" : "customer-login")}>
-          {isCustomer || isVendor ? "Student Login" : "Customer Sign In"}
-        </button>
-      </p>
+      {isVendor && (
+        <p className="switch-text">
+          Are you a student?
+          <button className="link-button" type="button" onClick={() => setPage("login")}>
+            Student Login
+          </button>
+        </p>
+      )}
 
       {isVendor && (
         <p className="switch-text">Customer?<button className="link-button" type="button" onClick={() => setPage("customer-login")}>Customer Sign In</button></p>
