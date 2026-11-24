@@ -40,6 +40,7 @@ const authMiddleware = async (
 
     // Role is always read from the current database record, never trusted from a token or client.
     req.user = { userId: user._id.toString(), accountType: user.accountType };
+    req.authExpiresAt = decoded.exp ? new Date(decoded.exp * 1000) : undefined;
 
     next();
 

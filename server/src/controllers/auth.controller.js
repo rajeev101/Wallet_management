@@ -3,6 +3,7 @@ const Wallet = require("../models/wallet.model");
 const OTP = require("../models/otp.model");
 const Transaction = require("../models/transaction.model");
 const Notification = require("../models/notification.model");
+const { notifyTransaction } = require("../services/transactionNotification.service");
 const bcrypt = require("bcryptjs");
 const generateToken = require("../utils/generateToken");
 const { WALLET_PAYER_ROLES, formatTransaction } = require("../utils/walletRoles");
@@ -630,6 +631,7 @@ exports.createWalletRequest = async (req, res) => {
       description: "Requested add money to admin",
     });
 
+    await notifyTransaction(userId, transaction, "requested");
     const [requester, admins] = await Promise.all([
       User.findById(userId).select("name"),
       User.find({ accountType: "admin" }).select("_id"),
@@ -823,6 +825,7 @@ exports.makePayment = async (req, res) => {
     }
 
     await Promise.allSettled([
+      notifyTransaction(student._id, transaction, "payment"),
       Notification.create({
         recipient: vendor._id,
         type: "payment",

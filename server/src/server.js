@@ -13,6 +13,7 @@ const bootstrapAdmin =
   require("./utils/bootstrapAdmin");
 const ensureUserWallets =
   require("./utils/ensureUserWallets");
+const { startPushWorker } = require("./services/push.service");
 
 const PORT =
   process.env.PORT || 5000;
@@ -26,6 +27,7 @@ const startServer = async () => {
     console.log(`Created ${repairedWallets} missing user wallet(s).`);
   }
 
+  startPushWorker();
   app.listen(PORT, () => {
     console.log(
       `Server running on port ${PORT}`

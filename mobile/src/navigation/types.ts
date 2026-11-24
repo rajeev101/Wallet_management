@@ -1,0 +1,31 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { AnalyticsKind, PayerRole, Role, Transaction, User } from '../types';
+
+export type WalletTabs = { Home: undefined; Scan: undefined; Transactions: undefined; AddMoney: undefined; Profile: undefined };
+export type VendorTabs = { VendorHome: undefined; QR: undefined; Transactions: undefined; Profile: undefined };
+export type AdminDrawer = { AdminHome: undefined; Students: undefined; Customers: undefined; Vendors: undefined; WalletRequests: undefined; AdminTransactions: undefined; AdminProfile: undefined };
+export type RootStack = {
+  Login: { role?: Role } | undefined;
+  Register: { role?: PayerRole; adminHandoff?: boolean } | undefined;
+  Forgot: { role: Role };
+  VerifyOTP: undefined;
+  ResetPassword: undefined;
+  AccessDenied: undefined;
+  Wallet: NavigatorScreenParams<WalletTabs> | undefined;
+  Vendor: NavigatorScreenParams<VendorTabs> | undefined;
+  Admin: NavigatorScreenParams<AdminDrawer> | undefined;
+  Notifications: undefined;
+  Analytics: { kind: AnalyticsKind; title: string };
+  TransactionDetail: { transaction: Transaction };
+  PersonDetail: { person: User };
+  PersonTransactions: { person: User };
+  WalletBalances: undefined;
+  AllTransactions: undefined;
+  CreateVendor: undefined;
+  EditProfile: undefined;
+  ChangePassword: undefined;
+};
+export type StackProps<Name extends keyof RootStack> = NativeStackScreenProps<RootStack, Name>;
+export const useRootNavigation = () => useNavigation<NativeStackNavigationProp<RootStack>>();

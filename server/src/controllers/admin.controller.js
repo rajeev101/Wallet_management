@@ -1,7 +1,7 @@
 const Transaction = require("../models/transaction.model");
 const User = require("../models/user.model");
 const Wallet = require("../models/wallet.model");
-const Notification = require("../models/notification.model");
+const { notifyTransaction } = require("../services/transactionNotification.service");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const { WALLET_PAYER_ROLES, formatTransaction } = require("../utils/walletRoles");
@@ -319,6 +319,7 @@ exports.addMoney = async (req, res) => {
       createdBy: req.admin?._id || req.user?.userId,
     });
 
+    await notifyTransaction(student._id, transaction, "credited");
     const studentObj = student.toObject();
     delete studentObj.password;
     studentObj.walletBalance = wallet.balance;
@@ -464,11 +465,7 @@ exports.updateWalletRequestStatus = async (req, res) => {
 
     const requestWallet = await Wallet.findById(transaction.toWallet).select("owner");
     if (requestWallet?.owner) {
-      await Notification.create({
-        recipient: requestWallet.owner,
-        type: "wallet_status",
-        text: `Wallet Recharge: Your request for ₹${Number(transaction.amount).toFixed(2)} was ${status}.`,
-      });
+      await notifyTransaction(requestWallet.owner, transaction, status);
     }
 
     res.status(200).json({

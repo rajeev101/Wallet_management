@@ -1,0 +1,15 @@
+node_modules/
+.expo/
+dist/
+android/
+ios/
+.env
+.env.local
+.env.*.local
+*.jks
+*.keystore
+credentials.json
+google-services.json
+GoogleService-Info.plist
+*firebase-adminsdk*.json
+artifacts/

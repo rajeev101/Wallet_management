@@ -24,6 +24,7 @@ const {
   "../controllers/auth.controller"
 );
 const authMiddleware = require("../middlewares/auth.middleware");
+const { registerDevice, unregisterDevice } = require("../controllers/push.controller");
 const {
   getNotifications,
   clearNotifications,
@@ -54,5 +55,7 @@ router.get("/vendors", authMiddleware, authMiddleware.requireRoles("student", "c
 router.get("/vendors/:id", authMiddleware, authMiddleware.requireRoles("student", "customer"), getVendorById);
 router.get("/notifications", authMiddleware, getNotifications);
 router.delete("/notifications", authMiddleware, clearNotifications);
+router.post("/push/devices", authMiddleware, authMiddleware.requireRoles("student", "customer"), registerDevice);
+router.delete("/push/devices", authMiddleware, authMiddleware.requireRoles("student", "customer"), unregisterDevice);
 
 module.exports = router;
