@@ -10,10 +10,10 @@ export const Icon = ({ name, size = 20, color = colors.primary }: { name: IconNa
 export function Txt({ style, ...props }: TextProps) { return <Text {...props} style={[styles.body, style]} />; }
 export function Heading({ children }: PropsWithChildren) { return <Txt accessibilityRole="header" style={styles.heading}>{children}</Txt>; }
 
-export function Screen({ children, refreshing = false, onRefresh, scroll = true }: PropsWithChildren<{ refreshing?: boolean; onRefresh?: () => void; scroll?: boolean }>) {
-  return <SafeAreaView edges={['left', 'right', 'bottom']} style={[styles.fill, { backgroundColor: colors.background }]}>
+export function Screen({ children, refreshing = false, onRefresh, scroll = true, contentStyle, backgroundColor = colors.background }: PropsWithChildren<{ refreshing?: boolean; onRefresh?: () => void; scroll?: boolean; contentStyle?: ViewStyle; backgroundColor?: string }>) {
+  return <SafeAreaView edges={['left', 'right', 'bottom']} style={[styles.fill, { backgroundColor }]}>
     <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={100}>
-      {scroll ? <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content} refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} /> : undefined}>{children}</ScrollView> : children}
+      {scroll ? <ScrollView style={{ backgroundColor }} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, contentStyle]} refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} /> : undefined}>{children}</ScrollView> : children}
     </KeyboardAvoidingView>
   </SafeAreaView>;
 }

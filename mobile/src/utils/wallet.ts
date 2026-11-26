@@ -5,7 +5,7 @@ export const titleCase = (value: string) => value.charAt(0).toUpperCase() + valu
 export const partyId = (party?: Party) => typeof party === 'string' ? party : party?._id || party?.id || '';
 export const partyName = (party?: Party) => typeof party === 'object' && party ? party.name : '';
 export const holder = (transaction: Transaction) => transaction.accountHolder || transaction.student || transaction.customer;
-export const money = (value: number | undefined) => `\u20b9${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(Number(value || 0))}`;
+export const money = (value: number | undefined) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', useGrouping: false, minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(Number(value || 0));
 export const dateTime = (value?: string) => value && Number.isFinite(new Date(value).getTime()) ? new Date(value).toLocaleString('en-IN') : 'Not available';
 export const userCode = (user: User) => `${({ student: 'STU', customer: 'CUS', vendor: 'VEN', admin: 'ADM' })[user.accountType]}${(user._id || user.id || '').slice(-5).toUpperCase()}`;
 export const initials = (name: string) => name.trim().split(/\s+/).filter(Boolean).map(part => part[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
@@ -13,7 +13,7 @@ export const emailValid = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e
 export const validVendorId = (value: string) => /^[a-f\d]{24}$/i.test(value.trim());
 
 export function loginAllowed(requested: Role, actual: Role) {
-  return roles.includes(requested) && roles.includes(actual);
+  return roles.includes(requested) && roles.includes(actual) && requested === actual;
 }
 
 export function signupPayload(form: { name: string; email: string; password: string; confirmPassword: string; identity: string }, accountType: 'student' | 'customer') {
