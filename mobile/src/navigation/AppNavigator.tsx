@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { DefaultTheme, NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import Svg, { Path, Rect } from 'react-native-svg';
 import { Brand, Button, Icon, IconButton, Loading, Notice, Screen, type IconName } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { NotificationProvider, useNotifications } from '../context/NotificationContext';
@@ -22,6 +23,14 @@ const WalletTab = createBottomTabNavigator<WalletTabs>();
 const headerStyle = { backgroundColor: colors.white };
 const headerTitleStyle = { fontFamily: fonts.semibold, fontSize: 17, color: colors.ink };
 
+function CustomerQrTabIcon() {
+  return <Svg width={29} height={29} viewBox="0 0 28 28"><Path d="M9 3H5a2 2 0 0 0-2 2v4m16-6h4a2 2 0 0 1 2 2v4M25 19v4a2 2 0 0 1-2 2h-4M9 25H5a2 2 0 0 1-2-2v-4" fill="none" stroke={colors.white} strokeWidth={2.7} strokeLinecap="round" /><Rect x={10} y={10} width={3} height={3} rx={.5} fill={colors.white} /><Rect x={16} y={10} width={3} height={3} rx={.5} fill={colors.white} /><Rect x={10} y={16} width={3} height={3} rx={.5} fill={colors.white} /><Rect x={16} y={16} width={3} height={3} rx={.5} fill={colors.white} /></Svg>;
+}
+
+function CustomerHomeTabIcon() {
+  return <Svg width={25} height={25} viewBox="0 0 24 24"><Path d="M3 10.7 12 3l9 7.7v9.1a1.2 1.2 0 0 1-1.2 1.2h-4.3v-6.4h-7v6.4H4.2A1.2 1.2 0 0 1 3 19.8z" fill={colors.primary} stroke={colors.primary} strokeLinejoin="round" strokeWidth={1.5} /><Path d="M10 21v-5.4h4V21" fill={colors.white} /></Svg>;
+}
+
 function HeaderActions() {
   const { notifications } = useNotifications();
   const navigation = useRootNavigation();
@@ -30,12 +39,13 @@ function HeaderActions() {
 
 function WalletNavigator() {
   const { user } = useAuth();
+  const customer = user?.accountType === 'customer';
   const icons: Record<keyof WalletTabs, IconName> = { Home: 'home', Scan: 'maximize', Transactions: 'repeat', AddMoney: 'plus-circle', Profile: 'user' };
-  return <WalletTab.Navigator backBehavior="history" screenOptions={({ route }) => ({ headerStyle, headerTitleStyle, headerRight: HeaderActions, tabBarActiveTintColor: colors.primary, tabBarInactiveTintColor: colors.muted, tabBarLabelStyle: { fontFamily: fonts.medium, fontSize: 10 }, tabBarStyle: { backgroundColor: colors.white, borderTopColor: colors.line }, tabBarHideOnKeyboard: true, tabBarIcon: ({ color, size }) => <Icon name={icons[route.name]} color={color} size={size} /> })}>
-    <WalletTab.Screen name="Home" component={WalletHomeScreen} options={{ title: `${user?.accountType === 'customer' ? 'Customer' : 'Student'} Dashboard`, tabBarLabel: 'Home' }} />
-    <WalletTab.Screen name="Scan" component={ScanPayScreen} options={{ title: 'Scan to Pay', tabBarLabel: 'Scan' }} />
-    <WalletTab.Screen name="Transactions" component={TransactionsScreen} options={{ title: 'Transaction History', tabBarLabel: 'History' }} />
+  return <WalletTab.Navigator backBehavior="history" screenOptions={({ route }) => ({ headerStyle, headerTitleStyle, headerRight: ['AddMoney', 'Transactions', 'Profile'].includes(route.name) ? undefined : HeaderActions, tabBarActiveTintColor: colors.primary, tabBarInactiveTintColor: colors.muted, tabBarLabelStyle: { fontFamily: fonts.medium, fontSize: 10 }, tabBarStyle: { height: 72, paddingTop: 6, paddingBottom: 5, backgroundColor: colors.white, borderTopColor: colors.line, elevation: 8 }, tabBarItemStyle: { paddingVertical: 1 }, tabBarHideOnKeyboard: true, tabBarIcon: ({ color, size, focused }) => route.name === 'Scan' ? <View style={{ width: 62, height: 62, marginTop: 0, borderRadius: 31, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: colors.white }}><CustomerQrTabIcon /></View> : route.name === 'Home' && focused ? <CustomerHomeTabIcon /> : <Icon name={route.name === 'AddMoney' ? 'credit-card' : icons[route.name]} color={color} size={size} /> })}>
+    <WalletTab.Screen name="Home" component={WalletHomeScreen} options={{ title: `${customer ? 'Customer' : 'Student'} Dashboard`, tabBarLabel: 'Home', headerShown: false }} />
     <WalletTab.Screen name="AddMoney" component={AddMoneyScreen} options={{ title: 'Add Money Request', tabBarLabel: 'Add Money' }} />
+    <WalletTab.Screen name="Scan" component={ScanPayScreen} options={{ title: 'Scan to Pay', tabBarLabel: '' }} />
+    <WalletTab.Screen name="Transactions" component={TransactionsScreen} options={{ title: 'Transaction History', tabBarLabel: 'History' }} />
     <WalletTab.Screen name="Profile" component={ProfileScreen} />
   </WalletTab.Navigator>;
 }
