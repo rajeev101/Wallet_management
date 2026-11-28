@@ -6,7 +6,7 @@ import VendorQrCodePage from "./VendorQrCodePage";
 import VendorSettingsPage from "./VendorSettingsPage";
 import VendorSidebar from "./VendorSidebar";
 import VendorTransactionsPage from "./VendorTransactionsPage";
-import { getProfile } from "../api/auth";
+import { getProfile, logoutSession } from "../api/auth";
 
 const VENDOR_VIEWS = ["dashboard", "qr", "transactions", "settings"];
 
@@ -90,6 +90,8 @@ function VendorDashboardPage({ setPage }) {
 
 
   const handleExit = () => {
+    const token = sessionStorage.getItem("cpacToken");
+    if (token) void logoutSession(token).catch(() => {});
     sessionStorage.removeItem("cpacToken");
     sessionStorage.removeItem("cpacUserType");
     sessionStorage.removeItem("cpacUser");

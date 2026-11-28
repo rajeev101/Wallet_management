@@ -1,9 +1,11 @@
 import type { AdminStats, LoginResult, Notification, ProfileResult, RequestResult, Result, Role, TransactionResult, User } from '../types';
 import { HttpClient } from './http';
+import type { MobileLoginDevice } from './installationIdentity';
 
 export class WalletApi {
   constructor(public readonly http: HttpClient) {}
-  login = (email: string, password: string, accountType: Role) => this.http.request<LoginResult>('/auth/login', 'POST', { email, password, ...(accountType === 'admin' || accountType === 'vendor' ? { accountType } : {}) }, false);
+  login = (email: string, password: string, accountType: Role, device?: MobileLoginDevice) => this.http.request<LoginResult>('/auth/login', 'POST', { email, password, ...(accountType === 'admin' || accountType === 'vendor' ? { accountType } : {}), ...(device ? { clientType: 'mobile', device } : {}) }, false);
+  logout = () => this.http.request<Result>('/auth/logout', 'DELETE');
   signup = (payload: unknown) => this.http.request<ProfileResult>('/auth/signup', 'POST', payload, false);
   forgotPassword = (email: string) => this.http.request<Result>('/auth/forgot-password', 'POST', { email }, false);
   verifyOtp = (email: string, otp: string) => this.http.request<Result & { resetToken: string }>('/auth/verify-otp', 'POST', { email, otp }, false);

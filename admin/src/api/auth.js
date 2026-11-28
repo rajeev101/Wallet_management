@@ -4,6 +4,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ||
 const request = async (path, payload, options = {}) => {
   const requestOptions = {
     method: options.method || "POST",
+    ...(options.keepalive ? { keepalive: true } : {}),
     headers: {
       "Content-Type": "application/json",
       ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
@@ -19,7 +20,7 @@ const request = async (path, payload, options = {}) => {
   const data = await response.json();
 
   if (!response.ok) {
-    if (response.status === 401) {
+    if (response.status === 401 && path !== "/auth/logout") {
       sessionStorage.removeItem("cpacToken");
       sessionStorage.removeItem("cpacUserType");
       sessionStorage.removeItem("cpacUser");
@@ -31,6 +32,7 @@ const request = async (path, payload, options = {}) => {
 };
 
 export const adminLogin = (payload) => request("/auth/login", { ...payload, accountType: "admin" });
+export const logoutSession = (token) => request("/auth/logout", undefined, { method: "DELETE", token, keepalive: true });
 
 export const getProfile = (token) =>
   request("/auth/profile", undefined, { method: "GET", token });

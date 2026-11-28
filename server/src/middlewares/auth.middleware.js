@@ -1,5 +1,7 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/user.model");
+const RevokedToken = require("../models/revokedToken.model");
+const { digest } = require("../services/deviceBinding.service");
 
 const authMiddleware = async (
   req,
@@ -26,7 +28,7 @@ const authMiddleware = async (
       process.env.JWT_SECRET
     );
 
-    const user = await User.findById(decoded.userId).select("accountType vendorStatus");
+    const user = await User.findById(decoded.userId).select("accountType vendorStatus authVersion +deviceBinding");
     if (!user) {
       return res.status(401).json({ message: "Session user no longer exists" });
     }
@@ -38,6 +40,15 @@ const authMiddleware = async (
       });
     }
 
+    if ((decoded.authVersion || 0) !== (user.authVersion || 0)
+      || (user.deviceBinding && decoded.deviceIdHash !== digest(user.deviceBinding.id))) {
+      return res.status(401).json({ success: false, code: "SESSION_REVOKED", message: "Your session was revoked. Please sign in again." });
+    }
+    const tokenHash = digest(token);
+    if (await RevokedToken.exists({ tokenHash })) {
+      return res.status(401).json({ success: false, code: "SESSION_REVOKED", message: "Your session has ended. Please sign in again." });
+    }
+    req.authSession = { tokenHash, authVersion: decoded.authVersion || 0, deviceIdHash: decoded.deviceIdHash };
     // Role is always read from the current database record, never trusted from a token or client.
     req.user = { userId: user._id.toString(), accountType: user.accountType };
     req.authExpiresAt = decoded.exp ? new Date(decoded.exp * 1000) : undefined;
@@ -46,8 +57,10 @@ const authMiddleware = async (
 
   } catch (error) {
 
-    return res.status(401).json({
-      message: "Invalid token",
+    const invalidToken = ["JsonWebTokenError", "TokenExpiredError", "NotBeforeError"].includes(error.name);
+    return res.status(invalidToken ? 401 : 503).json({
+      success: false,
+      message: invalidToken ? "Invalid token" : "Authentication is temporarily unavailable. Please try again.",
     });
 
   }

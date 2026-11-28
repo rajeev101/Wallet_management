@@ -1,5 +1,5 @@
 export class ApiError extends Error {
-  constructor(message: string, public readonly status = 0) { super(message); this.name = 'ApiError'; }
+  constructor(message: string, public readonly status = 0, public readonly code?: string) { super(message); this.name = 'ApiError'; }
 }
 
 export class HttpClient {
@@ -21,11 +21,11 @@ export class HttpClient {
         ...(payload === undefined ? {} : { body: JSON.stringify(payload) }),
       });
       const text = await response.text();
-      let data: { message?: string; success?: boolean };
+      let data: { message?: string; success?: boolean; code?: string };
       try { data = text ? JSON.parse(text) : {}; }
       catch { throw new ApiError('The server returned an unexpected response. Please try again.', response.status); }
       if (response.status === 401 && authenticated && this.token === token) this.onUnauthorized?.();
-      if (!response.ok || data.success === false) throw new ApiError(data.message || `Request failed (${response.status}).`, response.status);
+      if (!response.ok || data.success === false) throw new ApiError(data.message || `Request failed (${response.status}).`, response.status, data.code);
       return data as T;
     } catch (error) {
       if (error instanceof ApiError) throw error;

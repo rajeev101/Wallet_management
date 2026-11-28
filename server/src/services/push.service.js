@@ -7,8 +7,11 @@ const expo = new Expo({ accessToken: process.env.EXPO_ACCESS_TOKEN });
 const receiptDelay = 15 * 60 * 1000;
 
 async function deliver(job) {
-  const owner = await User.findOne({ _id: job.recipient, accountType: { $in: ["student", "customer"] } }).select("_id");
-  const devices = owner ? await PushDevice.find({ owner: job.recipient, expiresAt: { $gt: new Date() } }).lean() : [];
+  const owner = await User.findOne({ _id: job.recipient, accountType: { $in: ["student", "customer"] } }).select("_id authVersion");
+  const version = owner?.authVersion || 0;
+  const devices = owner ? await PushDevice.find({ owner: job.recipient, expiresAt: { $gt: new Date() },
+    ...(version ? { authVersion: version } : { $or: [{ authVersion: 0 }, { authVersion: { $exists: false } }] }),
+  }).lean() : [];
   const accepted = new Set(job.tickets.map(ticket => ticket.token));
   const messages = devices.filter(device => !accepted.has(device.token)).map(device => ({
     to: device.token, title: job.title, body: job.body, sound: "default", channelId: "transactions", priority: "high", ttl: 86400,

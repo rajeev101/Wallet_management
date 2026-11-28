@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "node test/auth.middleware.test.js && node test/vendor-login.test.js && node test/vendor-count.test.js"
+    "test": "node test/auth.middleware.test.js && node test/vendor-login.test.js && node test/vendor-count.test.js",
+    "test:devices": "node --test test/device-binding.test.js"
   },
   "keywords": [],
   "author": "",
@@ -17,11 +18,13 @@
     "dotenv": "^17.4.2",
     "expo-server-sdk": "^4.0.0",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.7.5",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.7.0",
     "nodemailer": "^6.10.1"
   },
   "devDependencies": {
+    "mongodb-memory-server": "^11.4.0",
     "nodemon": "^3.1.14"
   }
 }

@@ -5,7 +5,7 @@ import StudentScanPayPage from "./StudentScanPayPage";
 import StudentTransactionsPage from "./StudentTransactionsPage";
 import StudentHeader from "./StudentHeader";
 import { Icon } from "./StudentIcon";
-import { getProfile, getMyTransactions } from "../api/auth";
+import { getProfile, getMyTransactions, logoutSession } from "../api/auth";
 import formatStudentAmount from "./studentAmountFormatter";
 
 const STUDENT_VIEWS = ["dashboard", "scan", "transactions", "addMoney", "profile"];
@@ -507,6 +507,8 @@ function StudentDashboardPage({ setPage, role = "student" }) {
   const avgTransaction = spentCount > 0 ? totalSpent / spentCount : 0;
 
   const handleExit = () => {
+    const token = sessionStorage.getItem("cpacToken");
+    if (token) void logoutSession(token).catch(() => {});
     sessionStorage.removeItem("cpacToken");
     sessionStorage.removeItem("cpacUserType");
     sessionStorage.removeItem("cpacUser");

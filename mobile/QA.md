@@ -2,16 +2,19 @@
 
 ## Handoff Artifact
 
-- File: `artifacts/CampusWallet-QA-1.0.2.apk` (67.51 MiB).
-- Version: `1.0.2` / version code `3`.
-- SHA-256: `9DE86FFEB09F6C78087BCE1C825A76B960DC2534717560B030E3434C54CA0AB0`.
+- File: `artifacts/CampusWallet-QA-1.0.3.apk` (67.91 MiB).
+- Version: `1.0.3` / version code `4`.
+- SHA-256: `C0BAFDC2931F95A5BBE622F3942BB6AE15725005E514CD18AD5AC25C4AD1F0EF`.
 - Verified: release build succeeds, APK v2 signature is valid, embedded JavaScript bundle contains the deployed API URL, Android API 24+ and ARM64/ARMv7 metadata match expectations.
-- Installed as an update and launched on Samsung SM-A055F without Metro. The supplied artwork is configured as the launcher icon; the native cold-start logo splash and sign-in logo were visually verified on-device. TypeScript and all 12 tests pass.
+- Verified: the bundled code includes installation identity and push-device registration. The signing certificate matches QA 1.0.2.
+- Installed as a data-preserving update and cold-launched on Samsung SM-A055F without Metro. The Student/Customer sign-in screen and supplied logo were visually verified; no JavaScript crash appeared in the captured startup log. TypeScript and all 17 mobile tests pass. Signed-in device binding and real push delivery are not verified by this build handoff.
 - Camera and foreground location permissions remain declared in the APK. The foreground location dialog was verified on-device in QA 1.0.1. Scanner preview and QR recognition after granting camera permission still need a signed-in device check.
+- Android notification permission is declared; real push delivery still requires the configuration and deployment below.
 - Camera and foreground location are requested sequentially on initial launch. Existing permission choices are respected, with a Settings shortcut for denied access. No background location permission or service is enabled; no location coordinates are collected or uploaded.
 
 ## Environment
 
+- Single-device binding and Admin reset source changes are documented in `../DEVICE_LOGIN.md`. QA 1.0.3 includes the mobile changes; the changed backend/Admin source still needs production deployment. No production deployment was performed for this build.
 - API: `https://www.mapawallet.in/api/v1` (live Hostinger deployment).
 - Mobile accounts: Student and Customer only. Admin and Vendor access remains browser-only.
 - Android 7.0 or later, ARM64 or ARMv7 devices.
@@ -28,7 +31,7 @@ $env:EXPO_PUBLIC_API_BASE_URL = 'https://www.mapawallet.in/api/v1'
 & .\mobile\android\gradlew.bat -p .\mobile\android :app:assembleRelease '-PreactNativeArchitectures=arm64-v8a,armeabi-v7a' --console=plain --no-daemon
 ```
 
-The generated APK is `android/app/build/outputs/apk/release/app-release.apk` within the mobile project. The QA handoff copy is `artifacts/CampusWallet-QA-1.0.2.apk`.
+The generated APK is `android/app/build/outputs/apk/release/app-release.apk` within the mobile project. The QA handoff copy is `artifacts/CampusWallet-QA-1.0.3.apk`.
 
 The native Android directory is generated and Git-ignored. On a fresh checkout, install dependencies and run `npx expo prebuild --platform android` from this directory before building locally. Alternatively, `npx eas-cli build --platform android --profile preview` builds an internally distributed APK using EAS-managed signing (requires Expo authentication and project setup).
 
@@ -52,9 +55,9 @@ Share the APK through your team's approved private file-sharing service. On the 
 
 Public `EXPO_PUBLIC_*` environment values are embedded at build time. Changing the API endpoint requires rebuilding the APK; never put secrets in these variables.
 
-## Transaction Push Setup (Next Build)
+## Transaction Push Setup
 
-The source now supports push alerts for Student and Customer payments, direct admin wallet credits, funding requests, and funding approvals/rejections. The QA 1.0.2 APK above predates push support and must be replaced with a newly built APK. Admin and Vendor accounts do not register for mobile push.
+The source supports push alerts for Student and Customer payments, direct admin wallet credits, funding requests, and funding approvals/rejections. QA 1.0.3 includes this client code but was built without an Expo project ID or Firebase configuration. Complete the configuration below, rebuild the APK, and deploy the backend to activate remote push. Admin and Vendor accounts do not register for mobile push.
 
 1. Create or select an Expo project at https://expo.dev. Copy its UUID project ID into a local `mobile/.env.local` file as `EAS_PROJECT_ID=your-project-uuid`. This ID is public configuration, not an access token. The dynamic Expo configuration reads it into `extra.eas.projectId`.
 2. In Firebase, register an Android app with package `in.mapawallet.mobile`. Download its `google-services.json` into the mobile directory. It is ignored by Git. The Firebase project must match the FCM credentials uploaded in the next step.
@@ -80,4 +83,4 @@ iOS additionally requires an Apple-signed native build and APNs credentials conf
 - With approved QA accounts, exercise each event: completed payment, direct credit, pending funding request, approval, rejection. Test app foreground, background, cold start, and notification-tap navigation. These operations affect the live backend; do not use live balances without approval.
 - Test denied permission, Settings return, toggle off/on, logout, a different account on the same phone, token rotation, airplane mode and a server restart with queued deliveries.
 - Check server logs for ticket/receipt errors and confirm invalid-token cleanup and retry exhaustion. An Expo ticket confirms acceptance, not delivery to the phone.
-- Current local validation passes TypeScript, all 12 mobile tests, all 12 backend tests, isolated mocked queue/ownership/retry and mobile token-lifecycle checks, Android release Kotlin compilation, and merged-manifest checks for notification permission and the FCM service. Real FCM/APNs delivery remains unverified until credentials are configured and a native build is installed.
+- Source validation previously passed backend tests and isolated mocked queue/ownership/retry and mobile token-lifecycle checks. QA 1.0.3 passes TypeScript, all 17 mobile tests, the full Android release build, and APK notification-permission verification; it is installed on the Samsung QA device. Real FCM/APNs delivery remains unverified until credentials are configured, the APK is rebuilt, and the changed backend is deployed.

@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { currentMonth, filterTransactions, ledgerBalances, loginAllowed, mergeUnique, paymentPayload, positiveAmount, roles, signupPayload, summarize, transactionsFor, validVendorId } from '../src/utils/wallet';
-import { HttpClient } from '../src/services/http';
+import { ApiError, HttpClient } from '../src/services/http';
+import { createIdentityStore, type InstallationIdentity } from '../src/services/installationIdentity';
 import { WalletApi } from '../src/services/walletApi';
 import { requestInitialPermissions, type PermissionAccess } from '../src/services/permissions';
 import type { Transaction, User } from '../src/types';
@@ -57,7 +58,8 @@ test('role boundaries preserve Admin and Vendor restrictions', () => {
   assert.equal(loginAllowed('vendor', 'student'), false);
   assert.equal(loginAllowed('admin', 'student'), false);
   assert.equal(loginAllowed('vendor', 'customer'), false);
-  assert.equal(loginAllowed('student', 'customer'), true);
+  assert.equal(loginAllowed('student', 'customer'), false);
+  assert.equal(loginAllowed('customer', 'student'), false);
   assert.equal(loginAllowed('customer', 'admin'), false);
 });
 
@@ -133,4 +135,53 @@ test('malformed proxy responses, network failures and timeouts surface safe erro
   await assert.rejects(offline.request('/login', 'POST', {}, false), /internet connection/);
   const timeout = new HttpClient('https://example.invalid', async (_input, options) => new Promise((_resolve, reject) => options?.signal?.addEventListener('abort', () => reject(new Error('abort')))), 5);
   await assert.rejects(timeout.request('/login', 'POST', {}, false), /timed out/);
+});
+
+test('installation identity persists across restarts and concurrent reads without logout rotation', async () => {
+  let saved: string | null = null;
+  let generations = 0;
+  const storage = { get: async () => saved, set: async (value: string) => { saved = value; } };
+  const generate = async (): Promise<InstallationIdentity> => { generations += 1; return { id: '12345678-1234-4123-8123-123456789abc', credential: 'a'.repeat(64) }; };
+  const identity = createIdentityStore(storage, generate);
+  const [first, concurrent] = await Promise.all([identity(), identity()]);
+  assert.deepEqual(first, concurrent); assert.equal(generations, 1);
+  assert.deepEqual(await createIdentityStore(storage, generate)(), first);
+  assert.equal(generations, 1);
+});
+
+test('corrupted secure device identity is not silently replaced', async () => {
+  let generated = false;
+  const read = createIdentityStore({ get: async () => '{invalid', set: async () => {} }, async () => { generated = true; return { id: '', credential: '' }; });
+  await assert.rejects(read(), /contact admin/);
+  assert.equal(generated, false);
+});
+
+test('mobile login sends device metadata and retains structured device errors', async () => {
+  const device = { id: '12345678-1234-4123-8123-123456789abc', credential: 'a'.repeat(64), name: 'Phone', platform: 'ios' as const, osVersion: '18', appVersion: '1.0.2' };
+  let payload: Record<string, unknown> = {};
+  const http = new HttpClient('https://example.invalid', async (_input, options) => {
+    payload = JSON.parse(options!.body as string);
+    return new Response(JSON.stringify({ success: false, code: 'DEVICE_ALREADY_REGISTERED', message: 'Your account is already registered on another device. Please contact admin.' }), { status: 403 });
+  });
+  await assert.rejects(new WalletApi(http).login(payer.email, 'password', 'student', device), failure => failure instanceof ApiError && failure.code === 'DEVICE_ALREADY_REGISTERED' && /contact admin/.test(failure.message));
+  assert.equal(payload.clientType, 'mobile'); assert.deepEqual(payload.device, device); assert.equal(payload.accountType, undefined);
+});
+
+test('device storage failures fail closed before an identity is returned', async () => {
+  let generated = false;
+  const blocked = createIdentityStore({ get: async () => { throw new Error('Keychain locked'); }, set: async () => {} }, async () => { generated = true; return { id: '', credential: '' }; });
+  await assert.rejects(blocked(), /Keychain locked/); assert.equal(generated, false);
+  const identity = { id: '12345678-1234-4123-8123-123456789abc', credential: 'a'.repeat(64) };
+  const unwritable = createIdentityStore({ get: async () => null, set: async () => { throw new Error('Storage unavailable'); } }, async () => identity);
+  await assert.rejects(unwritable(), /Storage unavailable/);
+});
+
+test('a cleared installation receives a new identity instead of reusing an account binding', async () => {
+  let saved: string | null = null;
+  const storage = { get: async () => saved, set: async (value: string) => { saved = value; } };
+  const first = { id: '12345678-1234-4123-8123-123456789abc', credential: 'a'.repeat(64) };
+  assert.deepEqual(await createIdentityStore(storage, async () => first)(), first);
+  saved = null;
+  const replacement = { id: '87654321-4321-4123-8123-123456789abc', credential: 'b'.repeat(64) };
+  assert.deepEqual(await createIdentityStore(storage, async () => replacement)(), replacement);
 });

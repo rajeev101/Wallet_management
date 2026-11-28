@@ -4,6 +4,8 @@ const OTP = require("../models/otp.model");
 const Transaction = require("../models/transaction.model");
 const Notification = require("../models/notification.model");
 const { notifyTransaction } = require("../services/transactionNotification.service");
+const { authorizeDeviceLogin, DeviceError } = require("../services/deviceBinding.service");
+const RevokedToken = require("../models/revokedToken.model");
 const bcrypt = require("bcryptjs");
 const generateToken = require("../utils/generateToken");
 const { WALLET_PAYER_ROLES, formatTransaction } = require("../utils/walletRoles");
@@ -121,12 +123,15 @@ exports.signup = async (req, res) => {
 exports.login = async (req, res) => {
   try {
 
-    const email = String(req.body.email || "").toLowerCase().trim();
-    const { password } = req.body;
+    const { email: requestedEmail, password } = req.body || {};
+    if (typeof requestedEmail !== "string" || requestedEmail.length > 254 || typeof password !== "string" || !password || password.length > 256) {
+      return res.status(400).json({ success: false, code: "INVALID_LOGIN_INFORMATION", message: "A valid email and password are required." });
+    }
+    const email = requestedEmail.toLowerCase().trim();
 
     const user = await User.findOne({
       email,
-    });
+    }).select("+deviceBinding");
 
     if (!user) {
       return res.status(404).json({
@@ -160,7 +165,8 @@ exports.login = async (req, res) => {
       return res.status(403).json({ success: false, message: "Use the login page for your account type." });
     }
 
-    const token = generateToken(user._id);
+    const claims = await authorizeDeviceLogin(user, req.body);
+    const token = generateToken(user._id, claims);
 
     let wallet = await Wallet.findOne({ owner: user._id });
     if (!wallet) {
@@ -174,6 +180,8 @@ exports.login = async (req, res) => {
 
     const safeUser = user.toObject();
     delete safeUser.password;
+    delete safeUser.deviceBinding;
+    delete safeUser.deviceResetHistory;
     safeUser.walletBalance = wallet.balance;
 
     res.status(200).json({
@@ -183,6 +191,7 @@ exports.login = async (req, res) => {
     });
 
   } catch (error) {
+    if (error instanceof DeviceError) return res.status(error.status).json({ success: false, code: error.code, message: error.message });
     res.status(500).json({
       success: false,
       message: error.message,
@@ -374,6 +383,9 @@ exports.updateProfile = async (req, res) => {
 exports.logout = async (req, res) => {
   try {
 
+    await RevokedToken.updateOne({ tokenHash: req.authSession.tokenHash }, {
+      $setOnInsert: { user: req.user.userId, expiresAt: req.authExpiresAt || new Date(Date.now() + 7 * 86400000) },
+    }, { upsert: true });
     res.status(200).json({
       success: true,
       message: "Logged out successfully",

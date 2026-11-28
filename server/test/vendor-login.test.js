@@ -49,7 +49,7 @@ const withLoginStubs = async (accountType, vendorStatus, run) => {
   const originalWalletFindOne = Wallet.findOne;
   const originalCompare = bcrypt.compare;
   let walletLookupCount = 0;
-  User.findOne = async () => makeUser(accountType, vendorStatus);
+  User.findOne = () => ({ select: async () => makeUser(accountType, vendorStatus) });
   Wallet.findOne = async () => {
     walletLookupCount += 1;
     return { balance: 35 };

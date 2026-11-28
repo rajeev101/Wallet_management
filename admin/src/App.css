@@ -1187,6 +1187,43 @@
   font-size: 0.85rem;
 }
 
+.device-management { min-width: 0; }
+.device-toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-bottom: 20px; }
+.device-toolbar label, .device-reset-form label { display: grid; gap: 6px; font-size: 0.85rem; font-weight: 600; }
+.device-search { flex: 1 1 260px; }
+.device-toolbar input, .device-toolbar select, .device-reset-form textarea { width: 100%; min-height: 42px; padding: 10px; box-sizing: border-box; border: 1px solid #dce5f0; border-radius: 8px; font: inherit; background: #fff; color: #111827; }
+.device-management button { min-height: 42px; padding: 8px 12px; border: 1px solid #dce5f0; border-radius: 8px; background: #fff; color: #2444c2; font: inherit; cursor: pointer; }
+.device-management button:disabled { opacity: 0.5; cursor: not-allowed; }
+.device-result-count { color: #64748b; }
+.device-table table { min-width: 1000px; }
+.device-table td { max-width: 270px; }
+.device-table td span, .device-table td strong { display: block; overflow-wrap: anywhere; }
+.device-table td span { margin-top: 5px; font-size: 0.85rem; }
+.device-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.device-management button.device-danger { color: #b42318; border-color: #fecdca; }
+.device-state.locked { color: #166534; }
+.device-state.unbound { color: #64748b; }
+.device-pagination { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 18px 0; }
+.device-pagination svg { width: 20px; height: 20px; vertical-align: middle; }
+.device-next { display: inline-flex; transform: rotate(180deg); }
+.device-dialog { width: min(760px, calc(100vw - 32px)); }
+.device-dialog-body { padding: 24px; }
+.device-dialog-body p, .device-dialog-body small { overflow-wrap: anywhere; }
+.device-tabs { display: flex; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid #dce5f0; padding-bottom: 12px; }
+.device-tabs button[aria-selected="true"] { background: #2444c2; color: white; }
+.device-details { margin: 20px 0; }
+.device-details > div { display: grid; grid-template-columns: minmax(110px, 1fr) minmax(0, 2fr); gap: 16px; padding: 10px 0; border-bottom: 1px solid #eef2f6; }
+.device-details dt { font-weight: 600; }
+.device-details dd { margin: 0; overflow-wrap: anywhere; }
+.device-reset-form { display: grid; gap: 18px; }
+.device-reset-form textarea { min-height: 110px; resize: vertical; }
+.device-audit-list article { padding: 16px 0; border-bottom: 1px solid #dce5f0; }
+@media (max-width: 600px) {
+  .device-toolbar label { flex: 1 1 140px; min-width: 0; }
+  .device-dialog-body { padding: 16px; }
+  .device-details > div { grid-template-columns: minmax(0, 1fr); gap: 5px; }
+}
+
 .dashboard-details-modal {
   width: 100%;
   height: 100%;

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./VendorIcon";
-import { clearNotifications, getNotifications } from "../api/auth";
+import { clearNotifications, getNotifications, logoutSession } from "../api/auth";
 
 const getNameInitials = (name = "Vendor") => {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -106,6 +106,8 @@ export function VendorTopbarActions({ vendor = {}, onLogout }) {
     if (onLogout) {
       onLogout();
     } else {
+      const token = sessionStorage.getItem("cpacToken");
+      if (token) void logoutSession(token).catch(() => {});
       sessionStorage.removeItem("cpacToken");
       sessionStorage.removeItem("cpacUserType");
       sessionStorage.removeItem("cpacUser");
@@ -290,6 +292,8 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
     if (onLogout) {
       onLogout();
     } else {
+      const token = sessionStorage.getItem("cpacToken");
+      if (token) void logoutSession(token).catch(() => {});
       sessionStorage.removeItem("cpacToken");
       sessionStorage.removeItem("cpacUserType");
       sessionStorage.removeItem("cpacUser");

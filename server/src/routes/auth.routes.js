@@ -1,4 +1,5 @@
 const express = require("express");
+const { rateLimit } = require("express-rate-limit");
 
 const router = express.Router();
 
@@ -32,9 +33,16 @@ const {
 
 router.post("/signup", signup);
 
-router.post("/login", login);
+router.post("/login", rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: { success: false, code: "LOGIN_RATE_LIMITED", message: "Too many login attempts. Please try again later." },
+}), login);
 
-router.delete("/logout", logout);
+router.delete("/logout", authMiddleware, logout);
 
 router.post("/forgot-password", forgotPassword);
 

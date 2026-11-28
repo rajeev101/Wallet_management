@@ -7,6 +7,7 @@ const adminRoutes =
   require("./routes/admin.routes");
 
 const app = express();
+if (process.env.TRUST_PROXY === "1") app.set("trust proxy", 1);
 
 const allowedOrigins = [
   "http://localhost:3000",

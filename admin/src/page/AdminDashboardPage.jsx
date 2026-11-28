@@ -12,8 +12,9 @@ import {
   getNotifications,
   clearNotifications,
 } from "../api/admin";
-import { getProfile, updateProfile } from "../api/auth";
+import { getProfile, updateProfile, logoutSession } from "../api/auth";
 import VendorCreateDialog from "../components/common/VendorCreateDialog";
+import DeviceManagementSection from "../components/common/DeviceManagementSection";
 
 const formatNumber = (value) => new Intl.NumberFormat("en-US").format(Number(value || 0));
 const formatMoney = (value) => `₹${formatNumber(Math.round(Number(value || 0)))}`;
@@ -603,6 +604,8 @@ function AdminDashboardPage({ setPage }) {
   };
 
   const handleLogout = () => {
+    const token = sessionStorage.getItem("cpacToken");
+    if (token) void logoutSession(token).catch(() => {});
     sessionStorage.removeItem("cpacToken");
     sessionStorage.removeItem("cpacUserType");
     sessionStorage.removeItem("cpacUser");
@@ -910,6 +913,7 @@ function AdminDashboardPage({ setPage }) {
             ["dashboard", "Dashboard", "grid"],
             ["students", "Students", "students"],
             ["customers", "Customers", "students"],
+            ["devices", "Device Management", "user"],
             ["vendors", "Vendors", "store"],
             ["transactions", "Transactions", "swap"],
             ["wallet", "Wallet", "wallet"],
@@ -945,6 +949,8 @@ function AdminDashboardPage({ setPage }) {
                   ? "Vendor Management"
                   : activeView === "wallet"
                     ? "Wallet Management"
+                    : activeView === "devices"
+                      ? "Device Management"
                     : activeView === "dashboard"
                       ? "Dashboard"
                       : activeView === "profile" && isEditingProfile
@@ -1062,6 +1068,7 @@ function AdminDashboardPage({ setPage }) {
           <div className="admin-loading">Loading admin data...</div>
         ) : (
           <>
+            {activeView === "devices" && <DeviceManagementSection Icon={AdminIcon} />}
             {activeView === "dashboard" && (
               <>
                 <section className="admin-welcome-banner" aria-label="Welcome to Campus Wallet administration">

@@ -3,6 +3,10 @@ const assert = require("node:assert/strict");
 const authMiddleware = require("../src/middlewares/auth.middleware");
 const User = require("../src/models/user.model");
 const jwt = require("jsonwebtoken");
+const RevokedToken = require("../src/models/revokedToken.model");
+const originalExists = RevokedToken.exists;
+test.before(() => { RevokedToken.exists = async () => null; });
+test.after(() => { RevokedToken.exists = originalExists; });
 
 const invokeRoleGuard = (role, allowedRole) => {
   const req = { user: role ? { userId: "user-id", accountType: role } : null };

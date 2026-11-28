@@ -2,7 +2,7 @@
   "expo": {
     "name": "Campus Wallet",
     "slug": "campus-wallet",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "icon": "./assets/logo.png",
     "scheme": "campuswallet",
     "orientation": "portrait",
@@ -17,7 +17,7 @@
     },
     "android": {
       "package": "in.mapawallet.mobile",
-      "versionCode": 3,
+      "versionCode": 4,
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#304253"

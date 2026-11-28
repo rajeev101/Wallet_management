@@ -66,3 +66,9 @@ export const getNotifications = () => request("/auth/notifications");
 
 export const clearNotifications = () =>
   request("/auth/notifications", undefined, { method: "DELETE" });
+
+export const getDevices = (filters) => request(`/admin/devices?${new URLSearchParams(filters)}`);
+export const getDevice = (id) => request(`/admin/devices/${encodeURIComponent(id)}`);
+export const getDeviceHistory = (id, page = 1) => request(`/admin/devices/${encodeURIComponent(id)}/history?page=${page}&limit=10`);
+export const getDeviceAttempts = (id, page = 1) => request(`/admin/devices/${encodeURIComponent(id)}/attempts?page=${page}&limit=10`);
+export const resetDevice = (id, reason, expectedVersion) => request(`/admin/devices/${encodeURIComponent(id)}/reset`, { reason, expectedVersion }, { method: "POST" });

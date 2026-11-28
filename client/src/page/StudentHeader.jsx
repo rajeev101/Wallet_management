@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Icon } from "./StudentIcon";
-import { clearNotifications, getNotifications } from "../api/auth";
+import { clearNotifications, getNotifications, logoutSession } from "../api/auth";
 
 function StudentHeader({
   title,
@@ -67,6 +67,8 @@ function StudentHeader({
     if (onLogout) {
       onLogout();
     } else {
+      const token = sessionStorage.getItem("cpacToken");
+      if (token) void logoutSession(token).catch(() => {});
       sessionStorage.removeItem("cpacToken");
       sessionStorage.removeItem("cpacUserType");
       sessionStorage.removeItem("cpacUser");

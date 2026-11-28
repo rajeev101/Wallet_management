@@ -8,7 +8,7 @@ exports.registerDevice = async (req, res) => {
   }
   try {
     await PushDevice.findOneAndUpdate({ token }, {
-      $set: { owner: req.user.userId, platform, expiresAt: req.authExpiresAt || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
+      $set: { owner: req.user.userId, platform, authVersion: req.authSession?.authVersion || 0, expiresAt: req.authExpiresAt || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
     }, { upsert: true, runValidators: true });
     return res.json({ success: true });
   } catch (error) {
